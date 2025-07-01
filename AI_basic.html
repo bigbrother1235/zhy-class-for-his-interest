@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人工智能核心脉络交互式探索</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Stone, Slate, Indigo) -->
+    <!-- Application Structure Plan: A thematic, three-part structure is chosen over the report's linear chapter layout to enhance user exploration and understanding. The themes are "构建智能 (Building Intelligence)", "学习智能 (Learning Intelligence)", and "社会智能 (Social Intelligence)", representing the major evolutionary paradigms of AI. This non-linear design, facilitated by a main navigation bar and dynamic content loading, allows users to freely jump between foundational concepts, modern learning methods, and future collaborative systems. Key interactions include side-by-side comparisons, step-by-step process visualizers, and interactive demos, which are designed to make abstract concepts like reasoning, search algorithms, and machine learning tangible and intuitive, thereby maximizing usability and knowledge retention. -->
+    <!-- Visualization & Content Choices:
+        1. Knowledge Rep. -> Goal: Compare -> Method: Tabbed content cards -> Interaction: Click tabs to reveal structured pros/cons and examples -> Justification: Allows direct, clutter-free comparison of abstract concepts. (HTML/CSS)
+        2. Reasoning -> Goal: Demonstrate -> Method: Step-by-step animation for Resolution-Refutation & interactive chart for Fuzzy Logic -> Interaction: Click button for steps, drag slider for fuzzy logic -> Justification: Transforms complex logical processes into understandable visual sequences. (JS, Chart.js)
+        3. Search -> Goal: Visualize & Compare -> Method: Animated grid search -> Interaction: Select algorithm, see animated search path and stats -> Justification: Clearly illustrates the efficiency differences between algorithms. (JS/Canvas drawing via divs)
+        4. Optimization -> Goal: Visualize -> Method: Animated demos for Genetic Algorithm (string matching) and Particle Swarm (2D function optimization) -> Interaction: Start/reset animations, observe population/particle convergence -> Justification: Makes abstract optimization processes concrete and observable. (JS/CSS)
+        5. ML -> Goal: Differentiate & Demonstrate -> Method: Interactive diagrams for ML types & animated K-Means clustering -> Interaction: Click to expand, set K value and run animation -> Justification: Provides both a high-level overview and a hands-on feel for how algorithms work. (HTML/CSS, JS/Canvas drawing via divs)
+        6. Deep Learning -> Goal: Explain Architectures -> Method: Simplified, animated flow diagrams for CNN/LSTM/GAN -> Interaction: Click through steps to see data transformation or adversarial process -> Justification: De-mystifies the internal workings of complex models. (HTML/CSS, JS)
+        7. Agents -> Goal: Compare & Explain -> Method: Card layout with flowcharts & animated coordination demo for Contract Net -> Interaction: Click to view details, watch animation of agent communication -> Justification: Effectively illustrates both agent theory and practical interaction protocols. (HTML/CSS, JS)
+        Library/Method: Chart.js for charts, custom JS/CSS animations for all other visualizations. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f8fafc; }
+        .nav-button { transition: all 0.3s ease; }
+        .nav-button.active { background-color: #4338ca; color: white; }
+        .nav-button:not(.active):hover { background-color: #e0e7ff; color: #312e81; }
+        .content-card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); transition: transform 0.3s ease, box-shadow 0.3s ease; overflow: hidden; }
+        .content-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1); }
+        .sub-nav-button { transition: background-color 0.2s, color 0.2s; }
+        .sub-nav-button.active { background-color: #eef2ff; color: #3730a3; border-color: #4f46e5; }
+        .interactive-area { border: 1px solid #e5e7eb; border-radius: 0.5rem; background-color: #f9fafb; }
+        .grid-cell { width: 20px; height: 20px; border: 1px solid #e5e7eb; transition: background-color 0.3s ease; }
+        .grid-cell.wall { background-color: #374151; }
+        .grid-cell.start { background-color: #22c55e; }
+        .grid-cell.end { background-color: #ef4444; }
+        .grid-cell.visited { background-color: #a5b4fc; animation: pulse 0.7s; }
+        .grid-cell.path { background-color: #facc15; animation: pulse 1s; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        .pso-particle { position: absolute; width: 10px; height: 10px; border-radius: 50%; background-color: #4f46e5; transition: transform 0.5s linear; }
+        .pso-pbest { position: absolute; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #3b82f6; }
+        .pso-gbest { position: absolute; width: 16px; height: 16px; border-radius: 50%; background-color: #f59e0b; animation: gbest-pulse 2s infinite; }
+        .cluster-point { position: absolute; width: 8px; height: 8px; border-radius: 50%; transition: background-color 0.5s ease; }
+        .cluster-centroid { position: absolute; width: 14px; height: 14px; transition: all 0.5s ease; border: 2px solid; }
+        .agent { position: absolute; transition: all 0.5s ease-in-out; }
+        .message-line { stroke-width: 2; animation: dash 5s linear infinite; }
+        .bp-neuron, .dl-element { position: absolute; border: 2px solid; border-radius: 50%; transition: all 0.3s ease; }
+        .bp-line, .dl-line { position: absolute; background-color: #9ca3af; transition: all 0.3s ease; transform-origin: 0 50%; }
+        .anim-pulse { animation: anim-pulse-effect 0.5s; }
+        @keyframes anim-pulse-effect { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        @keyframes gbest-pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); } 50% { transform: scale(1.2); box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); } }
+        @keyframes pulse { 0% { transform: scale(0.8); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes dash { to { stroke-dashoffset: -100; } }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; height: 300px; max-height: 40vh; }
+        @media (min-width: 768px) { .chart-container { height: 350px; } }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-slate-900">
+                <span class="text-indigo-600">AI</span> 核心脉络交互式探索
+            </h1>
+            <nav id="main-nav" class="flex space-x-2 md:space-x-4">
+            </nav>
+        </div>
+    </header>
+
+    <main id="main-content" class="container mx-auto p-4 md:p-8">
+    </main>
+
+    <footer class="text-center py-6 text-slate-500 text-sm">
+        <p>为探索人工智能核心概念而设计。所有内容均基于提供的报告生成。</p>
+    </footer>
+
+<script>
+const App = {
+    data: {
+        navigation: [
+            { id: 'build', name: '构建智能', sections: [
+                { id: 'knowledge', name: '知识表示', renderFunc: 'renderKnowledge' },
+                { id: 'reasoning', name: '逻辑推理', renderFunc: 'renderReasoning' },
+                { id: 'search', name: '搜索策略', renderFunc: 'renderSearch' },
+                { id: 'optimization', name: '智能优化', renderFunc: 'renderOptimization' },
+            ], intro: "此部分探索“古典”AI的基石：如何将人类知识形式化，并基于这些知识进行逻辑推理和问题求解。我们将深入了解符号主义AI如何通过精确的规则和高效的搜索，尝试从第一性原理构建智能。" },
+            { id: 'learn', name: '学习智能', sections: [
+                { id: 'ml', name: '机器学习', renderFunc: 'renderML' },
+                { id: 'ann', name: '神经网络', renderFunc: 'renderANN' },
+                { id: 'dl', name: '深度学习', renderFunc: 'renderDL' },
+            ], intro: "此部分聚焦于现代AI的核心驱动力——连接主义。我们将探讨机器如何不再依赖于人类预设的规则，而是直接从数据中“学习”知识和模式。这是从“编程智能”到“学习智能”的范式跃迁。" },
+            { id: 'social', name: '社会智能', sections: [
+                { id: 'agent', name: '智能体架构', renderFunc: 'renderAgent' },
+                { id: 'mas', name: '多智能体系统', renderFunc: 'renderMAS' },
+            ], intro: "当单个智能体的能力达到极限，AI的视野便拓展到群体。此部分研究能够自主感知和行动的“智能体”，以及它们如何组成一个复杂的“智能社会”，通过通信、协调与协作，解决单个个体无法完成的宏大问题。" }
+        ],
+        content: {
+            knowledge: {
+                title: "知识表示：智能的基石",
+                description: "知识表示的核心任务是如何将人类的知识形式化，使其能被计算机处理。这其中蕴含着“表达能力”与“计算效率”之间的永恒权衡。以下是三种主流的知识表示方法。",
+                methods: [
+                    { id: 'fol', name: '一阶谓词逻辑', icon: '∀∃', summary: "一种精确、严密的通用语言，使用谓词、个体、连接词和量词来描述事实和规则。", example_title: "经典示例：苏格拉底三段论", example: "`∀x (Man(x) → Mortal(x))` (凡人皆有一死)<br>`Man(Socrates)` (苏格拉底是人)<br>⊢ `Mortal(Socrates)` (所以苏格拉底会死)", pros: ["表达能力极强，通用性好", "逻辑基础坚实，推理可靠"], cons: ["计算复杂度高，通用推理效率低", "难以表达不确定性和常识"] },
+                    { id: 'prod', name: '产生式表示法', icon: 'IF-THEN', summary: "使用 \"IF-THEN\" 规则来表示知识，形式简单直观，是专家系统的核心。", example_title: "经典示例：动物识别规则", example: "`IF` 该动物有毛发 `AND` 有爪<br>`THEN` 该动物是哺乳动物<br>`WITH CF = 0.8`", pros: ["贴近人类思维，直观易懂", "知识模块化，易于维护和解释"], cons: ["知识获取是巨大瓶颈", "表达结构化知识能力弱"] },
+                    { id: 'frame', name: '框架表示法', icon: ' SLOT ', summary: "通过“槽(Slot)”和“侧面(Facet)”来描述对象的属性，善于表达结构性知识并支持继承。", example_title: "经典示例：教室框架", example: "框架: 教室<br> `槽1: 位置` (值: 教学楼A-301)<br> `槽2: 容量` (默认值: 50人)<br> `槽3: 设备` (IF-NEEDED: 检查库存)", pros: ["善于表达结构化、层次化知识", "通过默认值和继承实现高效推理"], cons: ["形式化程度不如逻辑", "推理能力相对有限"] },
+                ]
+            },
+            reasoning: {
+                deterministic: { title: "确定性推理：归结反演", description: "归结反演是一种高效的机器推理方法，其核心思想是“反证法”。为了证明一个结论，我们先假设其不成立，然后看是否能从前提中推导出矛盾（空子句NIL）。如果能，则原结论成立。", steps: [ { title: '1. 前提与待证结论', content: '前提1: `∀x (Man(x) → Mortal(x))` (凡人皆有一死)<br>前提2: `Man(Socrates)` (苏格拉底是人)<br><b>待证结论: `Mortal(Socrates)`</b>' }, { title: '2. 否定结论', content: '将待证结论否定，并加入知识库。<br><b>新事实: `¬Mortal(Socrates)`</b>' }, { title: '3. 转换为子句集', content: '将所有知识转换为标准的子句范式。<br>子句1: `¬Man(x) ∨ Mortal(x)`<br>子句2: `Man(Socrates)`<br>子句3: `¬Mortal(Socrates)`' }, { title: '4. 第一次归结', content: '将子句1与子句2进行归结，通过合一 `{Socrates/x}` 消解 `Man` 项。<br><b>新子句4: `Mortal(Socrates)`</b>' }, { title: '5. 第二次归结', content: '将新子句4与子句3进行归结。<br>`Mortal(Socrates)` 与 `¬Mortal(Socrates)` 互补。' }, { title: '6. 导出矛盾，证明成功', content: '归结结果为<b>空子句 (NIL)</b>，代表逻辑矛盾。<br>因此，最初的“否定结论”假设错误，原结论“苏格拉底会死”成立。' } ] },
+                uncertain: { title: "不确定性推理：模糊逻辑控制器", description: "模糊逻辑用于处理“热”、“冷”等模糊概念。它通过隶属度函数将精确输入“模糊化”，基于模糊规则进行推理，最后将模糊输出“去模糊化”为精确控制指令。请拖动下方滑块体验。", }
+            },
+            search: {
+                title: "搜索求解策略",
+                description: "AI将问题求解看作在“状态空间”中寻找从初始状态到目标状态的路径。不同的搜索策略在完备性、最优性和时空效率上各有权衡。请在下方网格中设置起点和终点，然后选择算法进行可视化比较。",
+                algorithms: [ {id: 'bfs', name: '宽度优先搜索 (BFS)', description: '逐层扩展，保证找到最短路径，但空间开销大。'}, {id: 'dfs', name: '深度优先搜索 (DFS)', description: '一路到底再回溯，空间开销小，但不保证最优。'}, {id: 'astar', name: 'A* 算法', description: '结合实际代价和启发式估计，是最高效的最优路径搜索算法之一。'} ]
+            },
+            optimization: {
+                title: "智能计算：源于自然的优化哲学",
+                description: "当问题解空间过于庞大复杂时，源于自然界智慧的元启发式算法提供了强大的全局优化工具。它们不保证找到绝对最优解，但擅长在可接受的时间内找到高质量的近似解。",
+                methods: [
+                    { id: 'ga', name: "遗传算法 (GA)", description: "模拟达尔文进化论，通过“选择、交叉、变异”操作，使问题的解（种群）不断进化，最终逼近最优解。" },
+                    { id: 'pso', name: "粒子群优化 (PSO)", description: "模拟鸟群觅食，每个解（粒子）通过追随“个体最优”和“全局最优”来更新自身位置，在解空间中搜索。" },
+                    { id: 'aco', name: "蚁群优化 (ACO)", description: "模拟蚂蚁通过信息素寻找最短路径。路径越好，信息素浓度越高，形成正反馈，最终找到最优路径。" }
+                ]
+            },
+            ml: {
+                title: "机器学习基础",
+                description: "机器学习使计算机无需显式编程就能从数据中学习。根据学习方式的不同，主要分为三大范式。",
+                paradigms: [
+                    { name: "有监督学习", description: "从“有标签”的数据 (输入, 正确输出) 中学习映射关系，用于分类和回归。", icon: "🏷️" },
+                    { name: "无监督学习", description: "从“无标签”的数据中发现隐藏的结构或模式，如聚类和降维。", icon: "🎨" },
+                    { name: "强化学习", description: "智能体通过与环境“试错”交互，学习能最大化累积奖励的策略。", icon: "🎮" }
+                ],
+                kmeans: {
+                    title: "K-均值聚类可视化",
+                    description: "K-Means是最经典的无监督聚类算法。它将数据集迭代地划分为K个簇，使得簇内点彼此靠近，簇间点彼此远离。请点击区域放置数据点，选择K值后开始聚类。"
+                }
+            },
+            ann: {
+                title: "经典人工神经网络",
+                description: "在深度学习时代之前，这些经典模型为连接主义的复兴奠定了重要基础。",
+                models: [
+                    { id: 'bp', name: 'BP神经网络', description: '通过误差反向传播算法训练的多层前馈网络，是现代神经网络的基础。' },
+                    { id: 'hopfield', name: 'Hopfield网络', description: '一种可用作联想记忆和求解优化问题的反馈型网络。' }
+                ]
+            },
+            dl: {
+                title: "核心深度学习架构",
+                description: "深度学习通过堆叠大量网络层，自动学习数据的层次化特征表示，是当前AI革命的核心引擎。",
+                models: [
+                    { id: 'cnn', name: '卷积神经网络 (CNN)', description: '通过卷积、池化等操作高效处理图像等网格数据，在计算机视觉领域取得巨大成功。' },
+                    { id: 'rnn', name: '循环神经网络 (RNN)', description: '通过循环结构处理序列数据，但在处理长序列时面临梯度消失问题。' },
+                    { id: 'gan', name: '生成对抗网络 (GAN)', description: '通过生成器与判别器的对抗博弈，学习生成以假乱真的新数据。' }
+                ]
+            },
+            agent: {
+                title: "智能体架构",
+                description: "智能体的“大脑”决定了它如何将感知转化为行动。不同的架构反映了符号主义与连接主义的经典思想交锋。",
+                architectures: [
+                    { name: "反应式", description: "基于预设的“刺激-反应”规则，响应速度快，但缺乏规划能力。", pros: ["快速", "简单"], cons: ["短视", "功能有限"]},
+                    { name: "慎思式 (BDI)", description: "基于“信念-愿望-意图”模型进行显式逻辑规划，行为理性，但响应慢。", pros: ["理性", "可规划"], cons: ["缓慢", "计算昂贵"]},
+                    { name: "混合式", description: "通常采用分层结构，结合反应式和慎思式的优点，以平衡响应速度和智能深度。", pros: ["平衡", "灵活"], cons: ["设计复杂"]},
+                ]
+            },
+            mas: {
+                title: "多智能体系统：构建智能社会",
+                description: "当问题超越单个智能体的能力时，就需要由多个自主智能体通过通信、协调与协作，共同解决问题。",
+                contract_net: {
+                    title: "合同网协议 (Contract Net)",
+                    description: "一种经典的协调与任务分配机制，模拟了市场招投标过程。一个智能体（管理者）广播任务，其他智能体（竞标者）根据自身能力进行投标，管理者选择最优的中标者并授予合同。"
+                }
+            }
+        },
+        currentView: { main: 'build', sub: 'knowledge' },
+        charts: {},
+        timers: {}
+    },
+
+    init() {
+        this.renderNav();
+        this.navigateTo('build', 'knowledge');
+    },
+
+    clearTimers() {
+        if (this.data.timers) {
+            Object.values(this.data.timers).forEach(timer => clearInterval(timer));
+        }
+        this.data.timers = {};
+    },
+
+    renderNav() {
+        const mainNav = document.getElementById('main-nav');
+        mainNav.innerHTML = this.data.navigation.map(item => `
+            <button id="nav-${item.id}" class="nav-button px-3 py-2 md:px-4 rounded-md text-sm md:text-base font-medium" onclick="App.navigateTo('${item.id}', null)">
+                ${item.name}
+            </button>
+        `).join('');
+    },
+
+    navigateTo(mainId, subId) {
+        this.clearTimers();
+        const mainItem = this.data.navigation.find(item => item.id === mainId);
+        if (!mainItem) return;
+
+        this.data.currentView.main = mainId;
+        this.data.currentView.sub = subId || mainItem.sections[0].id;
+
+        document.querySelectorAll('#main-nav .nav-button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`nav-${mainId}`).classList.add('active');
+
+        const renderFunc = mainItem.sections.find(s => s.id === this.data.currentView.sub).renderFunc;
+        this[renderFunc]();
+    },
+
+    renderHeader(mainId, subId) {
+        const mainItem = this.data.navigation.find(item => item.id === mainId);
+        const subNavHtml = mainItem.sections.map(s => `
+            <button id="sub-nav-${s.id}" class="sub-nav-button border-b-2 border-transparent px-3 py-2 text-sm font-medium text-slate-500 hover:text-indigo-600 hover:border-indigo-300" onclick="App.navigateTo('${mainId}', '${s.id}')">
+                ${s.name}
+            </button>
+        `).join('');
+
+        return `
+            <div class="fade-in">
+                <p class="text-indigo-600 font-semibold">${mainItem.name}</p>
+                <p class="mt-2 text-slate-600 max-w-3xl">${mainItem.intro}</p>
+                <div class="border-b border-slate-200 mt-6">
+                    <nav class="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
+                        ${subNavHtml}
+                    </nav>
+                </div>
+            </div>
+        `;
+    },
+
+    updateActiveSubNav(subId) {
+        document.querySelectorAll('.sub-nav-button').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.getElementById(`sub-nav-${subId}`);
+        if(activeBtn) activeBtn.classList.add('active');
+    },
+
+    renderKnowledge() {
+        const content = this.data.content.knowledge;
+        const mainContent = document.getElementById('main-content');
+
+        let methodsHtml = content.methods.map(method => `
+            <div class="content-card p-6 flex flex-col">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">${method.icon}</div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">${method.name}</h3>
+                        <p class="text-sm text-slate-500">${method.summary}</p>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-200 flex-grow">
+                    <h4 class="font-semibold text-sm text-slate-700">${method.example_title}</h4>
+                    <div class="mt-2 p-3 rounded-md bg-slate-50 text-xs text-slate-600 font-mono">${method.example}</div>
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <h5 class="font-semibold text-green-600">优势</h5>
+                            <ul class="mt-1 list-disc list-inside text-slate-600 space-y-1">
+                                ${method.pros.map(p => `<li>${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-red-600">局限</h5>
+                            <ul class="mt-1 list-disc list-inside text-slate-600 space-y-1">
+                                ${method.cons.map(c => `<li>${c}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        mainContent.innerHTML = `
+            ${this.renderHeader('build', 'knowledge')}
+            <div class="mt-8 fade-in">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">${content.description}</p>
+                <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    ${methodsHtml}
+                </div>
+            </div>
+        `;
+        this.updateActiveSubNav('knowledge');
+    },
+
+    renderReasoning() {
+        const detData = this.data.content.reasoning.deterministic;
+        const uncData = this.data.content.reasoning.uncertain;
+        const mainContent = document.getElementById('main-content');
+
+        mainContent.innerHTML = `
+            ${this.renderHeader('build', 'reasoning')}
+            <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 fade-in">
+                <div class="content-card p-6">
+                    <h3 class="text-xl font-bold text-slate-900">${detData.title}</h3>
+                    <p class="mt-2 text-slate-600 text-sm">${detData.description}</p>
+                    <div id="resolution-visualizer" class="mt-4 space-y-3"></div>
+                    <button id="resolution-btn" class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition" onclick="App.runResolution()">开始/重置推理</button>
+                </div>
+                <div class="content-card p-6">
+                    <h3 class="text-xl font-bold text-slate-900">${uncData.title}</h3>
+                    <p class="mt-2 text-slate-600 text-sm">${uncData.description}</p>
+                    <div class="interactive-area mt-4 p-4">
+                       <div class="chart-container">
+                           <canvas id="fuzzyChart"></canvas>
+                       </div>
+                       <div class="mt-4">
+                           <label for="temp-slider" class="block text-sm font-medium text-slate-700">输入温度: <span id="temp-value" class="font-bold text-indigo-600">28</span>°C</label>
+                           <input id="temp-slider" type="range" min="0" max="50" value="28" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                       </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        this.updateActiveSubNav('reasoning');
+        this.initResolutionVisualizer();
+        this.initFuzzyChart();
+        document.getElementById('temp-slider').addEventListener('input', (e) => this.updateFuzzyChart(e.target.value));
+    },
+
+    initResolutionVisualizer() {
+        this.resolutionState = {
+            currentIndex: -1,
+            steps: this.data.content.reasoning.deterministic.steps,
+            container: document.getElementById('resolution-visualizer'),
+        };
+        this.resolutionState.container.innerHTML = `<div class="p-4 text-center text-slate-400">点击下方按钮开始推理过程。</div>`;
+    },
+
+    runResolution() {
+        const { steps, container } = this.resolutionState;
+        this.resolutionState.currentIndex = (this.resolutionState.currentIndex + 1) % (steps.length + 1);
+
+        if (this.resolutionState.currentIndex === 0) {
+            container.innerHTML = '';
+        }
+
+        if (this.resolutionState.currentIndex < steps.length) {
+            const step = steps[this.resolutionState.currentIndex];
+            const stepEl = document.createElement('div');
+            stepEl.className = 'p-4 border border-slate-200 rounded-md bg-white fade-in';
+            stepEl.innerHTML = `
+                <h4 class="font-semibold text-slate-800">${step.title}</h4>
+                <p class="mt-1 text-sm text-slate-600 font-mono">${step.content}</p>
+            `;
+            container.appendChild(stepEl);
+            document.getElementById('resolution-btn').innerText = '下一步';
+        } else {
+            this.initResolutionVisualizer();
+            document.getElementById('resolution-btn').innerText = '开始/重置推理';
+        }
+    },
+
+    initFuzzyChart() {
+        if (this.data.charts.fuzzyChart) this.data.charts.fuzzyChart.destroy();
+        const ctx = document.getElementById('fuzzyChart').getContext('2d');
+        const labels = Array.from({length: 51}, (_, i) => i);
+
+        this.data.charts.fuzzyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: '凉爽', data: labels.map(x => this.fuzzyMembership(x, 0, 10, 20, 30)), borderColor: 'rgb(59, 130, 246)', borderWidth: 2, fill: false, tension: 0.1 },
+                    { label: '温暖', data: labels.map(x => this.fuzzyMembership(x, 20, 25, 30, 35)), borderColor: 'rgb(245, 158, 11)', borderWidth: 2, fill: false, tension: 0.1 },
+                    { label: '炎热', data: labels.map(x => this.fuzzyMembership(x, 30, 40, 50, 50)), borderColor: 'rgb(239, 68, 68)', borderWidth: 2, fill: false, tension: 0.1 },
+                    { label: '风扇转速 (模糊输出)', data: [], backgroundColor: 'rgba(79, 70, 229, 0.4)', borderColor: 'rgb(79, 70, 229)', borderWidth: 2, fill: true, steppped: true }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 1, title: { display: true, text: '隶属度' } }, x: { title: { display: true, text: '温度 (°C) / 转速' } } }, plugins: { title: { display: true, text: '温度模糊集合与风扇转速' } } }
+        });
+        this.updateFuzzyChart(28);
+    },
+
+    fuzzyMembership(x, a, b, c, d) {
+        if (x <= a || x >= d) return 0;
+        if (x > a && x < b) return (x - a) / (b - a);
+        if (x >= b && x <= c) return 1;
+        if (x > c && x < d) return (d - x) / (d - c);
+        return 0;
+    },
+
+    updateFuzzyChart(temp) {
+        document.getElementById('temp-value').textContent = temp;
+        const tempVal = parseFloat(temp);
+
+        const coolness = this.fuzzyMembership(tempVal, 0, 10, 20, 30);
+        const warmth = this.fuzzyMembership(tempVal, 20, 25, 30, 35);
+        const hotness = this.fuzzyMembership(tempVal, 30, 40, 50, 50);
+        const slowSpeed = coolness, mediumSpeed = warmth, fastSpeed = hotness;
+
+        const outputFuzzySet = this.data.charts.fuzzyChart.data.labels.map(x => {
+            const slowMembership = this.fuzzyMembership(x, 0, 10, 20, 30);
+            const mediumMembership = this.fuzzyMembership(x, 25, 35, 45, 50);
+            const fastMembership = this.fuzzyMembership(x, 40, 50, 60, 70);
+            return Math.max(Math.min(slowSpeed, slowMembership), Math.min(mediumSpeed, mediumMembership), Math.min(fastSpeed, fastMembership));
+        });
+
+        this.data.charts.fuzzyChart.data.datasets[3].data = outputFuzzySet;
+        this.data.charts.fuzzyChart.update('none');
+    },
+
+    renderSearch() {
+        const content = this.data.content.search;
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `
+            ${this.renderHeader('build', 'search')}
+            <div class="mt-8 content-card p-6 fade-in">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-4xl">${content.description}</p>
+                <div class="mt-6 flex flex-col lg:flex-row gap-6">
+                    <div id="search-grid-container" class="flex-grow flex justify-center items-center"></div>
+                    <div class="w-full lg:w-64 flex-shrink-0">
+                        <h3 class="font-bold text-lg">控制面板</h3>
+                        <div class="mt-4 space-y-4">
+                            <div>
+                                <h4 class="font-semibold text-sm">选择算法</h4>
+                                <div id="algo-buttons" class="mt-2 grid grid-cols-3 gap-2">
+                                    ${content.algorithms.map(a => `<button class="px-3 py-2 text-sm border rounded-md hover:bg-slate-100" onclick="App.runSearch('${a.id}')">${a.name}</button>`).join('')}
+                                </div>
+                            </div>
+                             <div>
+                                <h4 class="font-semibold text-sm">图例</h4>
+                                <div class="mt-2 space-y-1 text-xs">
+                                    <div class="flex items-center"><div class="w-4 h-4 rounded-full bg-green-500 mr-2"></div>起点</div>
+                                    <div class="flex items-center"><div class="w-4 h-4 rounded-full bg-red-500 mr-2"></div>终点</div>
+                                    <div class="flex items-center"><div class="w-4 h-4 rounded-full bg-gray-700 mr-2"></div>障碍物</div>
+                                    <div class="flex items-center"><div class="w-4 h-4 rounded-full bg-indigo-200 mr-2"></div>已访问</div>
+                                    <div class="flex items-center"><div class="w-4 h-4 rounded-full bg-yellow-400 mr-2"></div>最终路径</div>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="w-full px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700" onclick="App.resetSearchGrid()">重置网格</button>
+                            </div>
+                            <div id="search-stats" class="text-sm p-3 bg-slate-100 rounded-md"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        this.updateActiveSubNav('search');
+        this.initSearchGrid();
+    },
+
+    initSearchGrid() {
+        this.searchGrid = { rows: 15, cols: 20, start: {r: 7, c: 3}, end: {r: 7, c: 16}, walls: new Set(), isDrawing: false, };
+        const container = document.getElementById('search-grid-container');
+        container.innerHTML = '';
+        const table = document.createElement('div');
+        table.className = 'grid gap-0';
+        table.style.gridTemplateColumns = `repeat(${this.searchGrid.cols}, 20px)`;
+        for (let r = 0; r < this.searchGrid.rows; r++) {
+            for (let c = 0; c < this.searchGrid.cols; c++) {
+                const cell = document.createElement('div');
+                cell.id = `cell-${r}-${c}`;
+                cell.className = 'grid-cell';
+                if (r === this.searchGrid.start.r && c === this.searchGrid.start.c) cell.classList.add('start');
+                else if (r === this.searchGrid.end.r && c === this.searchGrid.end.c) cell.classList.add('end');
+                cell.addEventListener('mousedown', (e) => { e.preventDefault(); this.searchGrid.isDrawing = true; this.toggleWall(r, c); });
+                cell.addEventListener('mouseenter', () => { if (this.searchGrid.isDrawing) this.toggleWall(r, c); });
+                table.appendChild(cell);
+            }
+        }
+        container.appendChild(table);
+        document.body.addEventListener('mouseup', () => { this.searchGrid.isDrawing = false; });
+        this.updateSearchStats('准备就绪。');
+    },
+
+    toggleWall(r, c) {
+        const key = `${r}-${c}`;
+        const cell = document.getElementById(`cell-${r}-${c}`);
+        if (!cell.classList.contains('start') && !cell.classList.contains('end')) {
+            if (this.searchGrid.walls.has(key)) { this.searchGrid.walls.delete(key); cell.classList.remove('wall'); }
+            else { this.searchGrid.walls.add(key); cell.classList.add('wall'); }
+        }
+    },
+
+    resetSearchGrid() {
+        this.searchGrid.walls.clear();
+        for (let r = 0; r < this.searchGrid.rows; r++) {
+            for (let c = 0; c < this.searchGrid.cols; c++) {
+                 document.getElementById(`cell-${r}-${c}`).classList.remove('wall', 'visited', 'path');
+            }
+        }
+        this.updateSearchStats('网格已重置。');
+    },
+
+    updateSearchStats(message) { document.getElementById('search-stats').innerHTML = message; },
+
+    async runSearch(algoId) {
+        this.clearSearchPath();
+        const { rows, cols, start, end, walls } = this.searchGrid;
+        let openSet, cameFrom, costSoFar, visitedCount = 0;
+        const animations = [];
+        const getNeighbors = ({r, c}) => {
+            const neighbors = [];
+            [[0,1], [0,-1], [1,0], [-1,0]].forEach(([dr, dc]) => {
+                const nr = r + dr, nc = c + dc;
+                if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !walls.has(`${nr}-${nc}`)) {
+                    neighbors.push({r: nr, c: nc});
+                }
+            });
+            return neighbors;
+        };
+        const heuristic = (a, b) => Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+
+        if (algoId === 'bfs') {
+            openSet = [start]; cameFrom = {}; const visited = new Set([`${start.r}-${start.c}`]);
+            while(openSet.length > 0) {
+                const current = openSet.shift();
+                if (current.r === end.r && current.c === end.c) break;
+                visitedCount++; animations.push({r: current.r, c: current.c, type: 'visited'});
+                for (const neighbor of getNeighbors(current)) {
+                    const key = `${neighbor.r}-${neighbor.c}`;
+                    if (!visited.has(key)) { visited.add(key); cameFrom[key] = current; openSet.push(neighbor); }
+                }
+            }
+        } else if (algoId === 'dfs') {
+            openSet = [start]; cameFrom = {}; const visited = new Set();
+            while(openSet.length > 0) {
+                const current = openSet.pop();
+                const currentKey = `${current.r}-${current.c}`;
+                if (visited.has(currentKey)) continue;
+                visited.add(currentKey); visitedCount++; animations.push({r: current.r, c: current.c, type: 'visited'});
+                if (current.r === end.r && current.c === end.c) break;
+                const neighbors = getNeighbors(current).reverse();
+                for (const neighbor of neighbors) {
+                     const key = `${neighbor.r}-${neighbor.c}`;
+                     if (!visited.has(key)) { cameFrom[key] = current; openSet.push(neighbor); }
+                }
+            }
+        } else if (algoId === 'astar') {
+            openSet = [{...start, f: heuristic(start, end)}]; cameFrom = {}; costSoFar = {[`${start.r}-${start.c}`]: 0};
+            while(openSet.length > 0) {
+                openSet.sort((a,b) => a.f - b.f);
+                const current = openSet.shift();
+                if (current.r === end.r && current.c === end.c) break;
+                visitedCount++; animations.push({r: current.r, c: current.c, type: 'visited'});
+                for (const neighbor of getNeighbors(current)) {
+                    const newCost = costSoFar[`${current.r}-${current.c}`] + 1;
+                    const neighborKey = `${neighbor.r}-${neighbor.c}`;
+                    if (costSoFar[neighborKey] === undefined || newCost < costSoFar[neighborKey]) {
+                        costSoFar[neighborKey] = newCost;
+                        const priority = newCost + heuristic(neighbor, end);
+                        openSet.push({...neighbor, f: priority}); cameFrom[neighborKey] = current;
+                    }
+                }
+            }
+        }
+
+        for (let i = 0; i < animations.length; i++) {
+            const {r, c} = animations[i];
+            const cell = document.getElementById(`cell-${r}-${c}`);
+            if (!cell.classList.contains('start') && !cell.classList.contains('end')) {
+                setTimeout(() => cell.classList.add('visited'), i * 10);
+            }
+        }
+
+        const path = []; let current = end;
+        while (current && !(current.r === start.r && current.c === start.c)) {
+            path.unshift(current); current = cameFrom[`${current.r}-${current.c}`];
+        }
+
+        for (let i = 0; i < path.length; i++) {
+            const {r, c} = path[i];
+            const cell = document.getElementById(`cell-${r}-${c}`);
+            if (!cell.classList.contains('end')) {
+                 setTimeout(() => cell.classList.add('path'), animations.length * 10 + i * 40);
+            }
+        }
+        const pathLength = path.length > 0 ? path.length : 'N/A';
+        this.updateSearchStats(`<b>${algoId.toUpperCase()} 完成</b><br>访问节点: ${visitedCount}<br>路径长度: ${pathLength}`);
+    },
+
+    clearSearchPath() {
+        for (let r = 0; r < this.searchGrid.rows; r++) {
+            for (let c = 0; c < this.searchGrid.cols; c++) {
+                 document.getElementById(`cell-${r}-${c}`).classList.remove('visited', 'path');
+            }
+        }
+    },
+
+    renderOptimization() {
+        const content = this.data.content.optimization;
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `
+            ${this.renderHeader('build', 'optimization')}
+            <div class="mt-8 fade-in">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">${content.description}</p>
+                <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- GA Card -->
+                    <div class="content-card p-6">
+                        <h3 class="text-xl font-bold text-slate-900">遗传算法 (GA) 演示</h3>
+                        <p class="mt-2 text-sm text-slate-600">模拟寻找目标字符串 "HELLO WORLD" 的过程。</p>
+                        <div class="interactive-area mt-4 p-4 font-mono">
+                            <div>目标: <span class="font-bold">HELLO WORLD</span></div>
+                            <div class="mt-2">代数: <span id="ga-gen" class="font-bold">0</span></div>
+                            <div class="mt-2">最佳个体: <span id="ga-best" class="font-bold"></span></div>
+                            <div class="mt-2">平均适应度: <span id="ga-avg-fitness" class="font-bold">0</span></div>
+                            <div id="ga-population" class="mt-4 text-sm space-y-1 h-40 overflow-y-auto"></div>
+                        </div>
+                        <button id="ga-btn" class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md" onclick="App.toggleGA()">开始/暂停</button>
+                    </div>
+                    <!-- PSO Card -->
+                    <div class="content-card p-6">
+                        <h3 class="text-xl font-bold text-slate-900">粒子群优化 (PSO) 演示</h3>
+                        <p class="mt-2 text-sm text-slate-600">粒子群在二维函数（中心为最低点）的解空间中寻找全局最优解（黄色星标）。</p>
+                        <div class="interactive-area mt-4 p-4 aspect-video relative" id="pso-container">
+                        </div>
+                        <button id="pso-btn" class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md" onclick="App.togglePSO()">开始/暂停</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        this.updateActiveSubNav('optimization');
+        this.initGA();
+        this.initPSO();
+    },
+
+    initGA() {
+        this.gaState = {
+            target: "HELLO WORLD",
+            populationSize: 100,
+            mutationRate: 0.01,
+            population: [],
+            generation: 0,
+            bestIndividual: '',
+            avgFitness: 0,
+            isRunning: false,
+        };
+        const randomChar = () => {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+            return chars.charAt(Math.floor(Math.random() * chars.length));
+        };
+        for (let i = 0; i < this.gaState.populationSize; i++) {
+            let genome = "";
+            for (let j = 0; j < this.gaState.target.length; j++) {
+                genome += randomChar();
+            }
+            this.gaState.population.push({genome: genome, fitness: 0});
+        }
+        this.updateGADisplay();
+    },
+
+    toggleGA() {
+        this.gaState.isRunning = !this.gaState.isRunning;
+        document.getElementById('ga-btn').innerText = this.gaState.isRunning ? '暂停' : '继续';
+        if (this.gaState.isRunning) {
+            this.data.timers.ga = setInterval(() => this.evolveGA(), 100);
+        } else {
+            clearInterval(this.data.timers.ga);
+        }
+    },
+
+    evolveGA() {
+        const { target, population, mutationRate } = this.gaState;
+
+        let totalFitness = 0;
+        population.forEach(p => {
+            let score = 0;
+            for(let i = 0; i < target.length; i++) {
+                if (p.genome.charAt(i) === target.charAt(i)) {
+                    score++;
+                }
+            }
+            p.fitness = Math.pow(score / target.length, 2); // Square to favor better results
+            totalFitness += p.fitness;
+        });
+
+        this.gaState.avgFitness = (totalFitness / population.length).toFixed(4);
+        population.sort((a, b) => b.fitness - a.fitness);
+        this.gaState.bestIndividual = population[0].genome;
+        this.gaState.generation++;
+
+        if (this.gaState.bestIndividual === target) {
+            this.toggleGA();
+        }
+
+        const matingPool = [];
+        population.forEach(p => {
+            const n = Math.floor(p.fitness * 100);
+            for (let i = 0; i < n; i++) {
+                matingPool.push(p);
+            }
+        });
+
+        const newPopulation = [];
+        for (let i = 0; i < population.length; i++) {
+            const parentA = matingPool[Math.floor(Math.random() * matingPool.length)];
+            const parentB = matingPool[Math.floor(Math.random() * matingPool.length)];
+
+            const midpoint = Math.floor(Math.random() * target.length);
+            let childGenome = parentA.genome.substring(0, midpoint) + parentB.genome.substring(midpoint);
+
+            let mutatedGenome = "";
+            for (let j = 0; j < childGenome.length; j++) {
+                if (Math.random() < mutationRate) {
+                    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+                    mutatedGenome += chars.charAt(Math.floor(Math.random() * chars.length));
+                } else {
+                    mutatedGenome += childGenome.charAt(j);
+                }
+            }
+            newPopulation.push({genome: mutatedGenome, fitness: 0});
+        }
+        this.gaState.population = newPopulation;
+        this.updateGADisplay();
+    },
+
+    updateGADisplay() {
+        document.getElementById('ga-gen').innerText = this.gaState.generation;
+        document.getElementById('ga-best').innerText = this.gaState.bestIndividual;
+        document.getElementById('ga-avg-fitness').innerText = this.gaState.avgFitness;
+        const popEl = document.getElementById('ga-population');
+        popEl.innerHTML = this.gaState.population.slice(0, 10).map(p => `<div>${p.genome}</div>`).join('');
+    },
+
+    initPSO() {
+        const container = document.getElementById('pso-container');
+        if (!container || container.clientWidth === 0) {
+            setTimeout(() => this.initPSO(), 50);
+            return;
+        }
+
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        const objectiveFunction = (x, y) => {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            return Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+        };
+
+        this.psoState = {
+            numParticles: 30,
+            particles: [],
+            gBest: { pos: {x: 0, y: 0}, val: Infinity },
+            isRunning: false,
+            containerSize: { width, height },
+            objectiveFunction: objectiveFunction
+        };
+
+        container.innerHTML = `<div class="pso-gbest" id="pso-gbest-marker"></div>`;
+
+        for (let i = 0; i < this.psoState.numParticles; i++) {
+            const pos = { x: Math.random() * width, y: Math.random() * height };
+            const fitness = objectiveFunction(pos.x, pos.y);
+            const particle = {
+                pos: pos,
+                vel: { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 },
+                pBest: { pos: { ...pos }, val: fitness },
+                el: document.createElement('div'),
+                pBestEl: document.createElement('div')
+            };
+            particle.el.className = 'pso-particle';
+            particle.pBestEl.className = 'pso-pbest';
+            container.appendChild(particle.el);
+            container.appendChild(particle.pBestEl);
+            this.psoState.particles.push(particle);
+
+            if (fitness < this.psoState.gBest.val) {
+                this.psoState.gBest.val = fitness;
+                this.psoState.gBest.pos = { ...pos };
+            }
+        }
+        this.updatePSODisplay();
+    },
+
+    togglePSO() {
+        this.psoState.isRunning = !this.psoState.isRunning;
+        document.getElementById('pso-btn').innerText = this.psoState.isRunning ? '暂停' : '继续';
+        if (this.psoState.isRunning) {
+            this.data.timers.pso = setInterval(() => this.evolvePSO(), 100);
+        } else {
+            clearInterval(this.data.timers.pso);
+        }
+    },
+
+    evolvePSO() {
+        const { particles, gBest, containerSize, objectiveFunction } = this.psoState;
+        const w = 0.5, c1 = 0.8, c2 = 0.9;
+
+        particles.forEach(p => {
+            const fitness = objectiveFunction(p.pos.x, p.pos.y);
+            if (fitness < p.pBest.val) {
+                p.pBest.val = fitness;
+                p.pBest.pos = { ...p.pos };
+            }
+            if (fitness < gBest.val) {
+                gBest.val = fitness;
+                gBest.pos = { ...p.pos };
+            }
+        });
+
+        particles.forEach(p => {
+            const r1 = Math.random(), r2 = Math.random();
+            p.vel.x = w * p.vel.x + c1 * r1 * (p.pBest.pos.x - p.pos.x) + c2 * r2 * (gBest.pos.x - p.pos.x);
+            p.vel.y = w * p.vel.y + c1 * r1 * (p.pBest.pos.y - p.pos.y) + c2 * r2 * (gBest.pos.y - p.pos.y);
+            p.pos.x += p.vel.x;
+            p.pos.y += p.vel.y;
+
+            p.pos.x = Math.max(0, Math.min(containerSize.width - 10, p.pos.x));
+            p.pos.y = Math.max(0, Math.min(containerSize.height - 10, p.pos.y));
+        });
+
+        this.updatePSODisplay();
+    },
+
+    updatePSODisplay() {
+        const { particles, gBest } = this.psoState;
+        particles.forEach(p => {
+            p.el.style.transform = `translate(${p.pos.x}px, ${p.pos.y}px)`;
+            p.pBestEl.style.transform = `translate(${p.pBest.pos.x}px, ${p.pBest.pos.y}px)`;
+        });
+        const gBestEl = document.getElementById('pso-gbest-marker');
+        if (gBest.val !== Infinity) {
+            gBestEl.style.transform = `translate(${gBest.pos.x}px, ${gBest.pos.y}px)`;
+        }
+    },
+
+    renderML() {
+        const content = this.data.content.ml;
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `
+            ${this.renderHeader('learn', 'ml')}
+            <div class="mt-8 fade-in">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">${content.description}</p>
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    ${content.paradigms.map(p => `
+                        <div class="content-card p-6 text-center">
+                            <div class="text-4xl">${p.icon}</div>
+                            <h3 class="mt-4 text-lg font-bold">${p.name}</h3>
+                            <p class="mt-2 text-sm text-slate-500">${p.description}</p>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="mt-8 content-card p-6">
+                    <h3 class="text-xl font-bold text-slate-900">${content.kmeans.title}</h3>
+                    <p class="mt-2 text-sm text-slate-600">${content.kmeans.description}</p>
+                    <div class="mt-4 flex flex-col md:flex-row gap-6">
+                        <div id="kmeans-container" class="interactive-area flex-grow aspect-video relative bg-white cursor-pointer"></div>
+                        <div class="w-full md:w-56 flex-shrink-0">
+                            <label for="k-slider" class="font-semibold text-sm">选择K值 (簇的数量): <span id="k-value" class="font-bold text-indigo-600">3</span></label>
+                            <input type="range" id="k-slider" min="2" max="6" value="3" class="w-full mt-2">
+                            <button class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md" onclick="App.runKMeans()">开始聚类</button>
+                            <button class="mt-2 w-full px-4 py-2 bg-slate-600 text-white rounded-md" onclick="App.resetKMeans()">重置数据点</button>
+                            <div id="kmeans-status" class="mt-4 text-sm text-slate-500"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        this.updateActiveSubNav('ml');
+        this.initKMeans();
+    },
+
+    initKMeans() {
+        this.kmeansState = {
+            points: [],
+            centroids: [],
+            k: 3,
+            colors: ['#ef4444', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#ec4899']
+        };
+        const container = document.getElementById('kmeans-container');
+        container.addEventListener('click', (e) => {
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            this.addKMeansPoint(x, y);
+        });
+        document.getElementById('k-slider').addEventListener('input', (e) => {
+            this.kmeansState.k = parseInt(e.target.value);
+            document.getElementById('k-value').innerText = this.kmeansState.k;
+        });
+    },
+
+    addKMeansPoint(x, y) {
+        const { points } = this.kmeansState;
+        const container = document.getElementById('kmeans-container');
+        const point = { x, y, cluster: -1, el: document.createElement('div') };
+        point.el.className = 'cluster-point';
+        point.el.style.transform = `translate(${x-4}px, ${y-4}px)`;
+        point.el.style.backgroundColor = '#64748b'; // slate-500
+        container.appendChild(point.el);
+        points.push(point);
+    },
+
+    resetKMeans() {
+        this.clearTimers();
+        if (this.kmeansState) {
+            const { points, centroids } = this.kmeansState;
+            points.forEach(p => p.el.remove());
+            centroids.forEach(c => c.el.remove());
+            this.kmeansState.points = [];
+            this.kmeansState.centroids = [];
+        }
+        const statusEl = document.getElementById('kmeans-status');
+        if(statusEl) statusEl.innerText = '';
+    },
+
+    runKMeans() {
+        this.clearTimers();
+        const { k, points, centroids, colors } = this.kmeansState;
+        const container = document.getElementById('kmeans-container');
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        centroids.forEach(c => c.el.remove());
+        this.kmeansState.centroids = [];
+
+        for (let i = 0; i < k; i++) {
+            const centroid = {
+                x: Math.random() * width,
+                y: Math.random() * height,
+                el: document.createElement('div')
+            };
+            centroid.el.className = 'cluster-centroid';
+            centroid.el.style.borderColor = colors[i];
+            centroid.el.style.transform = `translate(${centroid.x-7}px, ${centroid.y-7}px) rotate(45deg)`;
+            container.appendChild(centroid.el);
+            centroids.push(centroid);
+        }
+
+        let iteration = 0;
+        const iterate = () => {
+            iteration++;
+            document.getElementById('kmeans-status').innerText = `迭代次数: ${iteration}`;
+
+            let changed = false;
+            points.forEach(p => {
+                let minDist = Infinity;
+                let newCluster = -1;
+                centroids.forEach((c, i) => {
+                    const dist = Math.sqrt(Math.pow(p.x - c.x, 2) + Math.pow(p.y - c.y, 2));
+                    if (dist < minDist) {
+                        minDist = dist;
+                        newCluster = i;
+                    }
+                });
+                if (p.cluster !== newCluster) {
+                    changed = true;
+                    p.cluster = newCluster;
+                    p.el.style.backgroundColor = colors[p.cluster];
+                }
+            });
+
+            const newCentroids = Array.from({ length: k }, () => ({ x: 0, y: 0, count: 0 }));
+            points.forEach(p => {
+                if(p.cluster !== -1) {
+                    newCentroids[p.cluster].x += p.x;
+                    newCentroids[p.cluster].y += p.y;
+                    newCentroids[p.cluster].count++;
+                }
+            });
+            centroids.forEach((c, i) => {
+                if (newCentroids[i].count > 0) {
+                    c.x = newCentroids[i].x / newCentroids[i].count;
+                    c.y = newCentroids[i].y / newCentroids[i].count;
+                } else {
+                    // Re-initialize centroid for empty cluster
+                    c.x = Math.random() * width;
+                    c.y = Math.random() * height;
+                }
+                c.el.style.transform = `translate(${c.x-7}px, ${c.y-7}px) rotate(45deg)`;
+            });
+
+            if (!changed || iteration > 100) {
+                clearInterval(this.data.timers.kmeans);
+                document.getElementById('kmeans-status').innerText += ` (收敛!)`;
+            }
+        };
+
+        this.data.timers.kmeans = setInterval(iterate, 500);
+    },
+
+    renderANN() {
+        const content = this.data.content.ann;
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `
+            ${this.renderHeader('learn', 'ann')}
+             <div class="mt-8 fade-in">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">${content.description}</p>
+                <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <!-- BP Network Card -->
+                    <div class="content-card p-6">
+                        <h3 class="text-xl font-bold text-slate-900">BP神经网络动画</h3>
+                        <p class="mt-2 text-sm text-slate-600">展示数据前向传播，计算误差，然后误差反向传播以更新权重的过程。</p>
+                        <div class="interactive-area mt-4 p-4 aspect-video relative" id="bp-container"></div>
+                        <button class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md" onclick="App.runBPAnimation()">运行动画</button>
+                    </div>
+                     <!-- Hopfield Network Card -->
+                    <div class="content-card p-6">
+                        <h3 class="text-xl font-bold text-slate-900">Hopfield网络联想记忆</h3>
+                        <p class="mt-2 text-sm text-slate-600">网络已记忆'H'和'O'。点击下方网格制造噪声，然后观察网络如何收敛到最相似的记忆模式。</p>
+                        <div class="interactive-area mt-4 p-4 flex justify-center items-center">
+                            <div id="hopfield-grid" class="grid grid-cols-5 gap-1"></div>
+                        </div>
+                        <button class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md" onclick="App.runHopfield()">开始联想</button>
+                    </div>
+                </div>
+            </div>`;
+        this.updateActiveSubNav('ann');
+        this.initBP();
+        this.initHopfield();
+    },
+
+    initBP() {
+        const container = document.getElementById('bp-container');
+        if (!container) return;
+        container.innerHTML = '';
+        const layers = [2, 3, 1]; // Input, Hidden, Output
+        const neuronSize = 30;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        this.bpElements = { neurons: [], lines: [] };
+
+        layers.forEach((numNeurons, layerIndex) => {
+            const layerX = (containerWidth / (layers.length + 1)) * (layerIndex + 1);
+            this.bpElements.neurons.push([]);
+            for (let i = 0; i < numNeurons; i++) {
+                const neuronY = (containerHeight / (numNeurons + 1)) * (i + 1);
+                const neuron = document.createElement('div');
+                neuron.className = 'bp-neuron';
+                neuron.style.width = `${neuronSize}px`;
+                neuron.style.height = `${neuronSize}px`;
+                neuron.style.left = `${layerX - neuronSize/2}px`;
+                neuron.style.top = `${neuronY - neuronSize/2}px`;
+                neuron.style.borderColor = '#64748b';
+                container.appendChild(neuron);
+                this.bpElements.neurons[layerIndex].push(neuron);
+
+                if (layerIndex > 0) {
+                    this.bpElements.neurons[layerIndex - 1].forEach(prevNeuron => {
+                        const prevX = parseFloat(prevNeuron.style.left) + neuronSize/2;
+                        const prevY = parseFloat(prevNeuron.style.top) + neuronSize/2;
+                        const dx = (layerX - neuronSize/2) - prevX;
+                        const dy = (neuronY - neuronSize/2) - prevY;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                        const line = document.createElement('div');
+                        line.className = 'bp-line';
+                        line.style.width = `${dist}px`;
+                        line.style.height = '2px';
+                        line.style.left = `${prevX}px`;
+                        line.style.top = `${prevY + neuronSize/2}px`;
+                        line.style.transform = `rotate(${angle}deg)`;
+                        container.insertBefore(line, container.firstChild);
+                        this.bpElements.lines.push(line);
+                    });
+                }
+            }
+        });
+    },
+    runBPAnimation() {
+        this.clearTimers();
+        const { neurons, lines } = this.bpElements;
+        let step = 0;
+        const animate = (elements, color, duration) => {
+            elements.forEach(el => {
+                el.style.borderColor = color;
+                el.style.backgroundColor = color.replace(')', ', 0.2)').replace('rgb', 'rgba');
+                el.classList.add('anim-pulse');
+            });
+            setTimeout(() => {
+                elements.forEach(el => {
+                    el.style.borderColor = '#64748b';
+                    el.style.backgroundColor = 'transparent';
+                    el.classList.remove('anim-pulse');
+                });
+            }, duration);
+        };
+        const animateLines = (color, duration) => {
+            lines.forEach(line => line.style.backgroundColor = color);
+            setTimeout(() => lines.forEach(line => line.style.backgroundColor = '#9ca3af'), duration);
+        };
+
+        const sequence = [
+            () => animate(neurons[0], 'rgb(34, 197, 94)', 500), // Forward pass start
+            () => animate(neurons[1], 'rgb(59, 130, 246)', 500),
+            () => animate(neurons[2], 'rgb(239, 68, 68)', 500), // Error
+            () => animateLines('rgb(239, 68, 68)', 500), // Backward pass
+            () => animate(neurons[1], 'rgb(239, 68, 68)', 500),
+            () => animate(neurons[0], 'rgb(239, 68, 68)', 500),
+        ];
+
+        this.data.timers.bp = setInterval(() => {
+            if (step < sequence.length) {
+                sequence[step]();
+                step++;
+            } else {
+                this.clearTimers();
+            }
+        }, 600);
+    },
+    initHopfield() {
+        this.hopfieldState = {
+            size: 5,
+            grid: [],
+            weights: null,
+            patterns: [
+                [ 1,-1,-1,-1, 1,  1,-1,-1,-1, 1,  1, 1, 1, 1, 1,  1,-1,-1,-1, 1,  1,-1,-1,-1, 1 ], // H
+                [-1, 1, 1, 1,-1,  1,-1,-1,-1, 1,  1,-1,-1,-1, 1,  1,-1,-1,-1, 1, -1, 1, 1, 1,-1 ]  // O
+            ]
+        };
+        const n = this.hopfieldState.size * this.hopfieldState.size;
+        this.hopfieldState.weights = Array(n).fill(0).map(() => Array(n).fill(0));
+
+        this.hopfieldState.patterns.forEach(p => {
+            for(let i = 0; i < n; i++) {
+                for(let j = 0; j < n; j++) {
+                    if (i === j) continue;
+                    this.hopfieldState.weights[i][j] += p[i] * p[j];
+                }
+            }
+        });
+
+        const gridEl = document.getElementById('hopfield-grid');
+        gridEl.innerHTML = '';
+        this.hopfieldState.grid = Array(n).fill(1); // Correctly initialize the grid
+        for (let i = 0; i < n; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'w-8 h-8 border cursor-pointer';
+            cell.style.backgroundColor = 'white';
+            cell.addEventListener('click', () => {
+                this.hopfieldState.grid[i] *= -1;
+                cell.style.backgroundColor = this.hopfieldState.grid[i] === 1 ? 'black' : 'white';
+            });
+            gridEl.appendChild(cell);
+        }
+    },
+    runHopfield() {
+        this.clearTimers();
+        let iteration = 0;
+        const n = this.hopfieldState.size * this.hopfieldState.size;
+        this.data.timers.hopfield = setInterval(() => {
+            const randomIndex = Math.floor(Math.random() * n);
+            let sum = 0;
+            for(let j = 0; j < n; j++) {
+                sum += this.hopfieldState.weights[randomIndex][j] * this.hopfieldState.grid[j];
+            }
+            this.hopfieldState.grid[randomIndex] = sum >= 0 ? 1 : -1;
+
+            this.updateHopfieldGrid();
+            iteration++;
+            if(iteration > n * 5) {
+                this.clearTimers();
+            }
+        }, 50);
+    },
+    updateHopfieldGrid() {
+        const cells = document.getElementById('hopfield-grid').children;
+        for(let i = 0; i < cells.length; i++) {
+            cells[i].style.backgroundColor = this.hopfieldState.grid[i] === 1 ? 'black' : 'white';
+        }
+    },
+
+    renderDL() {
+        const content = this.data.content.dl;
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `
+            ${this.renderHeader('learn', 'dl')}
+             <div class="mt-8 fade-in">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">${content.description}</p>
+                <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    ${content.models.map(m => `
+                         <div class="content-card p-6">
+                            <h3 class="text-xl font-bold text-slate-900">${m.name}</h3>
+                            <p class="mt-2 text-sm text-slate-500">${m.description}</p>
+                            <div id="dl-container-${m.id}" class="mt-4 interactive-area p-4 aspect-square flex flex-col items-center justify-center text-slate-400 relative overflow-hidden">
+                                 <div class="text-center">
+                                    <p id="dl-status-${m.id}" class="h-8"></p>
+                                    <button class="mt-2 px-3 py-1 bg-indigo-600 text-white text-sm rounded-md" onclick="App.runDLAnimation('${m.id}')">运行演示</button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            `;
+        this.updateActiveSubNav('dl');
+    },
+    runDLAnimation(modelId) {
+        this.clearTimers();
+        const container = document.getElementById(`dl-container-${modelId}`);
+        const statusEl = document.getElementById(`dl-status-${modelId}`);
+        container.querySelectorAll('.dl-element, .dl-line').forEach(el => el.remove());
+
+        if (modelId === 'cnn') {
+            // CNN Visualization
+            statusEl.innerText = "输入图像";
+            const input = document.createElement('div');
+            input.className = 'dl-element grid grid-cols-5 gap-px p-1 bg-slate-400';
+            input.style.width = '80px'; input.style.height = '80px';
+            input.style.position = 'relative';
+            for(let i=0; i<25; i++) input.innerHTML += `<div class="w-full h-full ${Math.random() > 0.5 ? 'bg-slate-800' : 'bg-slate-100'}"></div>`;
+            container.appendChild(input);
+
+            setTimeout(() => {
+                statusEl.innerText = "卷积操作";
+                const filter = document.createElement('div');
+                filter.className = 'dl-element border-2 border-red-500 bg-red-500/20';
+                filter.style.width = '32px'; filter.style.height = '32px';
+                filter.style.position = 'absolute';
+                filter.style.left = '4px'; filter.style.top = '4px';
+                filter.style.transition = 'all 1s';
+                input.appendChild(filter);
+                setTimeout(() => { filter.style.left = '44px'; filter.style.top = '44px'; }, 500);
+            }, 1000);
+             setTimeout(() => {
+                statusEl.innerText = "生成特征图";
+                input.style.opacity = '0';
+                const featureMap = document.createElement('div');
+                featureMap.className = 'dl-element grid grid-cols-3 gap-px p-1 bg-blue-400';
+                featureMap.style.width = '50px'; featureMap.style.height = '50px';
+                for(let i=0; i<9; i++) featureMap.innerHTML += `<div class="w-full h-full ${Math.random() > 0.5 ? 'bg-blue-800' : 'bg-blue-100'}"></div>`;
+                container.appendChild(featureMap);
+            }, 2500);
+            setTimeout(() => { statusEl.innerText = "池化操作 -> 分类"; }, 3500);
+
+        } else if (modelId === 'rnn') {
+            // RNN Visualization
+            const words = ["AI", "改变", "世界"];
+            let currentX = 20;
+            words.forEach((word, i) => {
+                setTimeout(() => {
+                    statusEl.innerText = `处理输入: "${word}"`;
+                    const wordEl = document.createElement('div');
+                    wordEl.className = 'dl-element absolute border-slate-500 flex items-center justify-center';
+                    wordEl.style.width = '60px'; wordEl.style.height = '40px';
+                    wordEl.style.borderRadius = '0.25rem';
+                    wordEl.style.top = '150px';
+                    wordEl.style.left = `${currentX}px`;
+                    wordEl.innerText = word;
+                    wordEl.classList.add('anim-pulse');
+                    container.appendChild(wordEl);
+                    currentX += 70;
+                }, i * 1500);
+            });
+            const rnnCell = document.createElement('div');
+            rnnCell.innerText = 'RNN';
+            rnnCell.className = 'dl-element absolute border-indigo-500 flex items-center justify-center font-bold';
+            rnnCell.style.width = '80px'; rnnCell.style.height = '80px';
+            rnnCell.style.top = '50px'; rnnCell.style.left = 'calc(50% - 40px)';
+            container.appendChild(rnnCell);
+            setTimeout(() => { statusEl.innerText = "完成序列处理";}, words.length * 1500);
+
+        } else if (modelId === 'gan') {
+            // GAN Visualization
+            const generator = document.createElement('div');
+            generator.innerText = 'G';
+            generator.className = 'dl-element absolute border-blue-500 flex items-center justify-center font-bold';
+            generator.style.width = '60px'; generator.style.height = '60px';
+            generator.style.top = '50%'; generator.style.left = '20px';
+            generator.style.transform = 'translateY(-50%)';
+            container.appendChild(generator);
+
+            const discriminator = document.createElement('div');
+            discriminator.innerText = 'D';
+            discriminator.className = 'dl-element absolute border-red-500 flex items-center justify-center font-bold';
+            discriminator.style.width = '60px'; discriminator.style.height = '60px';
+            discriminator.style.top = '50%'; discriminator.style.right = '20px';
+            discriminator.style.transform = 'translateY(-50%)';
+            container.appendChild(discriminator);
+
+            setTimeout(() => {
+                statusEl.innerText = "生成器 G 产生假数据";
+                generator.classList.add('anim-pulse');
+                const fakeData = document.createElement('div');
+                fakeData.innerText = '🖼️?';
+                fakeData.className = 'dl-element absolute text-2xl';
+                fakeData.style.top = '50%'; fakeData.style.left = '90px';
+                fakeData.style.transform = 'translateY(-50%)';
+                fakeData.style.transition = 'all 1s';
+                container.appendChild(fakeData);
+                setTimeout(() => { fakeData.style.left = 'calc(100% - 120px)'; }, 500);
+            }, 500);
+             setTimeout(() => {
+                statusEl.innerText = "判别器 D 判别真假";
+                discriminator.classList.add('anim-pulse');
+            }, 2000);
+             setTimeout(() => {
+                statusEl.innerText = "D: '这是假的!' -> 反向传播";
+                discriminator.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+            }, 3000);
+             setTimeout(() => {
+                statusEl.innerText = "G 和 D 同时进化";
+                generator.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+            }, 4000);
+        }
+    },
+
+    renderAgent() {
+        const content = this.data.content.agent;
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `
+            ${this.renderHeader('social', 'agent')}
+            <div class="mt-8 fade-in">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">${content.description}</p>
+                 <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    ${content.architectures.map(arch => `
+                        <div class="content-card p-6 flex flex-col">
+                            <h3 class="text-xl font-bold text-center text-slate-900">${arch.name}</h3>
+                            <p class="mt-2 text-sm text-slate-500 text-center flex-grow">${arch.description}</p>
+                            <div class="mt-4 pt-4 border-t border-slate-200">
+                                <div class="text-sm font-semibold text-green-600">优点</div>
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    ${arch.pros.map(p => `<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${p}</span>`).join('')}
+                                </div>
+                                <div class="mt-3 text-sm font-semibold text-red-600">缺点</div>
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    ${arch.cons.map(c => `<span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${c}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            `;
+        this.updateActiveSubNav('agent');
+    },
+
+    renderMAS() {
+        const content = this.data.content.mas;
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `
+            ${this.renderHeader('social', 'mas')}
+             <div class="mt-8 fade-in content-card p-6">
+                <h2 class="text-2xl font-bold text-slate-900">${content.title}</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">${content.description}</p>
+                <div class="mt-6">
+                    <h3 class="text-xl font-bold text-slate-900">${content.contract_net.title}</h3>
+                    <p class="mt-2 text-sm text-slate-600">${content.contract_net.description}</p>
+                    <div id="mas-container" class="mt-4 interactive-area p-4 aspect-video relative overflow-hidden"></div>
+                    <button class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md" onclick="App.runMASAnimation()">开始演示</button>
+                    <div id="mas-log" class="mt-4 p-2 bg-slate-100 rounded-md text-xs font-mono h-24 overflow-y-auto"></div>
+                </div>
+            </div>`;
+        this.updateActiveSubNav('mas');
+        this.initMAS();
+    },
+
+    initMAS() {
+        this.masState = {
+            agents: [],
+            manager: null
+        };
+        const container = document.getElementById('mas-container');
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        // Manager agent
+        this.masState.manager = { x: width / 2, y: 50, el: this.createAgentElement('M', 'bg-red-500') };
+        container.appendChild(this.masState.manager.el);
+        this.masState.manager.el.style.transform = `translate(${this.masState.manager.x - 20}px, ${this.masState.manager.y - 20}px)`;
+
+        // Contractor agents
+        for(let i=0; i < 5; i++) {
+            const agent = {
+                x: (width / 6) * (i + 1),
+                y: height - 50,
+                el: this.createAgentElement(`C${i+1}`, 'bg-blue-500')
+            };
+            this.masState.agents.push(agent);
+            container.appendChild(agent.el);
+            agent.el.style.transform = `translate(${agent.x - 20}px, ${agent.y - 20}px)`;
+        }
+    },
+    createAgentElement(text, bgColor) {
+        const el = document.createElement('div');
+        el.className = `agent w-10 h-10 rounded-full text-white flex items-center justify-center font-bold shadow-lg ${bgColor}`;
+        el.innerText = text;
+        return el;
+    },
+    runMASAnimation() {
+        this.clearTimers();
+        const { manager, agents } = this.masState;
+        const container = document.getElementById('mas-container');
+        container.querySelector('svg')?.remove();
+        const log = document.getElementById('mas-log');
+        log.innerHTML = '';
+
+        const logMessage = (msg) => {
+            log.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
+            log.scrollTop = log.scrollHeight;
+        };
+
+        const createMessageLine = (from, to, color) => {
+            const svgNS = "http://www.w3.org/2000/svg";
+            let svg = container.querySelector('svg');
+            if(!svg) {
+                svg = document.createElementNS(svgNS, "svg");
+                svg.setAttribute('class', 'absolute top-0 left-0 w-full h-full');
+                container.insertBefore(svg, container.firstChild);
+            }
+            const line = document.createElementNS(svgNS, 'line');
+            line.setAttribute('x1', from.x);
+            line.setAttribute('y1', from.y);
+            line.setAttribute('x2', to.x);
+            line.setAttribute('y2', to.y);
+            line.setAttribute('stroke', color);
+            line.classList.add('message-line');
+            line.style.strokeDasharray = '5, 5';
+            svg.appendChild(line);
+            setTimeout(() => line.remove(), 1500);
+        };
+
+        let step = 0;
+        const sequence = [
+            () => { // Step 1: Call for proposals
+                logMessage("管理者 M: 广播任务招标 (CFP)...");
+                agents.forEach(agent => createMessageLine(manager, agent, '#f87171')); // red-400
+            },
+            () => { // Step 2: Bidding
+                logMessage("竞标者 C1-C5: 收到CFP, 正在评估...");
+                setTimeout(() => {
+                    logMessage("C1, C3, C4: 发送投标 (Propose)...");
+                    createMessageLine(agents[0], manager, '#60a5fa'); // blue-400
+                    createMessageLine(agents[2], manager, '#60a5fa');
+                    createMessageLine(agents[3], manager, '#60a5fa');
+                    logMessage("C2, C5: 拒绝投标 (Refuse)...");
+                }, 1000);
+            },
+            () => { // Step 3: Award contract
+                logMessage("管理者 M: 收到投标, 选择C3为最佳中标者...");
+                setTimeout(() => {
+                     logMessage("管理者 M: 向C3授予合同 (Accept-Proposal)...");
+                     createMessageLine(manager, agents[2], '#34d399'); // emerald-400
+                     logMessage("管理者 M: 拒绝其他投标 (Reject-Proposal)...");
+                     createMessageLine(manager, agents[0], '#fbbf24'); // amber-400
+                     createMessageLine(manager, agents[3], '#fbbf24'); // amber-400
+                }, 1000);
+            },
+            () => { // Step 4: Execution & Result
+                 logMessage("中标者 C3: 开始执行任务...");
+                 agents[2].el.classList.add('animate-bounce');
+                 setTimeout(() => {
+                     agents[2].el.classList.remove('animate-bounce');
+                     logMessage("中标者 C3: 任务完成, 发送结果 (Inform)...");
+                     createMessageLine(agents[2], manager, '#a78bfa'); // violet-400
+                 }, 2000);
+            },
+             () => {
+                 logMessage("演示结束。");
+                 this.clearTimers();
+             }
+        ];
+
+        this.data.timers.mas = setInterval(() => {
+            if(step < sequence.length) {
+                sequence[step]();
+                step++;
+            }
+        }, 3000);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+
+</body>
+</html>

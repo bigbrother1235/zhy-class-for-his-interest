@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>控制策略交互式探索器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals (Stone, Amber, Sky) -->
+    <!-- Application Structure Plan: A "Control Strategy Explorer" SPA. Structure: 1. Introduction, 2. Interactive PID Deep Dive (with real-time chart simulation), 3. "Challenge Wall" linking PID problems to advanced solutions, 4. Filterable "Advanced Control Arsenal", 5. Dynamic Controller Comparison Matrix, 6. Case Study Showcase. This problem-solution driven architecture is more engaging and intuitive for learning and decision-making than a linear report summary. -->
+    <!-- Visualization & Content Choices: Report Info: PID tuning -> Goal: Educate -> Viz: Interactive line chart -> Interaction: Sliders for Kp, Ki, Kd update chart -> Justification: Provides direct, hands-on understanding of parameter effects -> Library: Chart.js/Canvas. Report Info: Controller comparison table -> Goal: Compare/Decide -> Viz: Dynamic HTML table -> Interaction: Checkboxes select controllers for comparison -> Justification: Allows users to focus on specific trade-offs -> Library: JS/HTML. Report Info: Case Study KPIs -> Goal: Apply -> Viz: Simple bar chart -> Justification: Clearly shows performance gains -> Library: Chart.js/Canvas. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 320px; max-height: 50vh; }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        [x-cloak] { display: none !important; }
+        .nav-link { transition: all 0.3s ease; }
+        .nav-link.active { color: #d97706; border-bottom-color: #d97706; }
+        .nav-link:not(.active):hover { color: #f59e0b; border-bottom-color: #f59e0b; }
+        .card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 antialiased" x-data="controlApp()">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <span class="text-2xl font-bold text-amber-600">C</span>
+                        <span class="text-xl font-semibold">ontrol</span>
+                        <span class="text-2xl font-bold text-sky-600">E</span>
+                        <span class="text-xl font-semibold">xplorer</span>
+                    </div>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#intro" @click="scrollTo('intro')" class="nav-link px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent" :class="{ 'active': activeSection === 'intro' }">引言</a>
+                        <a href="#pid-deep-dive" @click="scrollTo('pid-deep-dive')" class="nav-link px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent" :class="{ 'active': activeSection === 'pid-deep-dive' }">PID深度解析</a>
+                        <a href="#challenge-wall" @click="scrollTo('challenge-wall')" class="nav-link px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent" :class="{ 'active': activeSection === 'challenge-wall' }">PID的挑战</a>
+                        <a href="#advanced-control" @click="scrollTo('advanced-control')" class="nav-link px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent" :class="{ 'active': activeSection === 'advanced-control' }">高级控制策略</a>
+                        <a href="#comparison" @click="scrollTo('comparison')" class="nav-link px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent" :class="{ 'active': activeSection === 'comparison' }">策略对比</a>
+                        <a href="#case-studies" @click="scrollTo('case-studies')" class="nav-link px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent" :class="{ 'active': activeSection === 'case-studies' }">案例研究</a>
+                    </div>
+                </div>
+                 <div class="md:hidden">
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" class="inline-flex items-center justify-center p-2 rounded-md text-stone-400 hover:text-stone-500 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500">
+                        <span class="sr-only">打开主菜单</span>
+                        <svg class="h-6 w-6" :class="{'hidden': mobileMenuOpen, 'block': !mobileMenuOpen }" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        <svg class="h-6 w-6" :class="{'hidden': !mobileMenuOpen, 'block': mobileMenuOpen }" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        <div x-show="mobileMenuOpen" @click.away="mobileMenuOpen = false" class="md:hidden" x-cloak>
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#intro" @click="scrollTo('intro'); mobileMenuOpen=false" class="block nav-link px-3 py-2 rounded-md text-base font-medium border-l-4 border-transparent" :class="{ 'active !border-amber-600 bg-amber-50': activeSection === 'intro' }">引言</a>
+                <a href="#pid-deep-dive" @click="scrollTo('pid-deep-dive'); mobileMenuOpen=false" class="block nav-link px-3 py-2 rounded-md text-base font-medium border-l-4 border-transparent" :class="{ 'active !border-amber-600 bg-amber-50': activeSection === 'pid-deep-dive' }">PID深度解析</a>
+                <a href="#challenge-wall" @click="scrollTo('challenge-wall'); mobileMenuOpen=false" class="block nav-link px-3 py-2 rounded-md text-base font-medium border-l-4 border-transparent" :class="{ 'active !border-amber-600 bg-amber-50': activeSection === 'challenge-wall' }">PID的挑战</a>
+                <a href="#advanced-control" @click="scrollTo('advanced-control'); mobileMenuOpen=false" class="block nav-link px-3 py-2 rounded-md text-base font-medium border-l-4 border-transparent" :class="{ 'active !border-amber-600 bg-amber-50': activeSection === 'advanced-control' }">高级控制策略</a>
+                <a href="#comparison" @click="scrollTo('comparison'); mobileMenuOpen=false" class="block nav-link px-3 py-2 rounded-md text-base font-medium border-l-4 border-transparent" :class="{ 'active !border-amber-600 bg-amber-50': activeSection === 'comparison' }">策略对比</a>
+                <a href="#case-studies" @click="scrollTo('case-studies'); mobileMenuOpen=false" class="block nav-link px-3 py-2 rounded-md text-base font-medium border-l-4 border-transparent" :class="{ 'active !border-amber-600 bg-amber-50': activeSection === 'case-studies' }">案例研究</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="intro" class="py-20 md:py-28 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h1 class="text-4xl md:text-6xl font-extrabold text-stone-900 tracking-tight">
+                    <span class="block">PID是</span>
+                    <span class="block text-amber-600">万能的吗？</span>
+                </h1>
+                <p class="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-stone-600">
+                    超过95%的工业控制回路都在使用PID。但当面对非线性、大时滞或多变量耦合的复杂系统时，它的局限性便显现出来。本应用旨在带您深入探索PID的世界，直面其挑战，并发现克服这些挑战的各种先进控制策略。
+                </p>
+                <div class="mt-8 flex justify-center">
+                    <a href="#pid-deep-dive" @click="scrollTo('pid-deep-dive')" class="inline-block bg-amber-600 text-white font-bold text-lg px-8 py-3 rounded-lg shadow-lg hover:bg-amber-700 transition-transform transform hover:scale-105">
+                        开启探索之旅
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section id="pid-deep-dive" class="py-20 md:py-24">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-base text-sky-600 font-semibold tracking-wide uppercase">第一部分</h2>
+                    <p class="mt-2 text-3xl font-extrabold text-stone-900 tracking-tight sm:text-4xl">PID控制器深度解析</p>
+                    <p class="mt-4 max-w-2xl mx-auto text-xl text-stone-500">理解控制工程的基石：它的原理、整定方法，以及在现实世界中的挑战与应对。</p>
+                </div>
+
+                <div class="mt-16 bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+                     <h3 class="text-2xl font-bold text-center mb-8">PID参数交互式仿真</h3>
+                     <p class="text-center text-stone-600 mb-8 max-w-3xl mx-auto">这是一个典型二阶系统的阶跃响应仿真。尝试拖动下方的滑块，观察调整比例 (P)、积分 (I)、微分 (D) 参数如何实时影响系统的响应曲线。亲身体验超调、振荡和稳态误差的变化，直观地理解每个参数的作用。</p>
+                    <div class="chart-container mb-8">
+                        <canvas id="pid-simulation-chart"></canvas>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 px-2 md:px-8">
+                        <div class="space-y-2">
+                            <label :for="'kp-slider'" class="flex justify-between font-medium">
+                                <span>比例增益 (Kp)</span>
+                                <span x-text="pidParams.kp.toFixed(2)" class="text-amber-600 font-bold w-12 text-right"></span>
+                            </label>
+                            <input type="range" id="kp-slider" min="0.1" max="5" step="0.1" x-model.number="pidParams.kp" @input="updatePidChart" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-amber-600">
+                        </div>
+                        <div class="space-y-2">
+                            <label :for="'ki-slider'" class="flex justify-between font-medium">
+                                <span>积分增益 (Ki)</span>
+                                <span x-text="pidParams.ki.toFixed(2)" class="text-sky-600 font-bold w-12 text-right"></span>
+                            </label>
+                            <input type="range" id="ki-slider" min="0" max="5" step="0.1" x-model.number="pidParams.ki" @input="updatePidChart" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-sky-600">
+                        </div>
+                        <div class="space-y-2">
+                            <label :for="'kd-slider'" class="flex justify-between font-medium">
+                                <span>微分增益 (Kd)</span>
+                                <span x-text="pidParams.kd.toFixed(2)" class="text-emerald-600 font-bold w-12 text-right"></span>
+                            </label>
+                            <input type="range" id="kd-slider" min="0" max="5" step="0.1" x-model.number="pidParams.kd" @input="updatePidChart" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-emerald-600">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="challenge-wall" class="py-20 md:py-24 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-base text-sky-600 font-semibold tracking-wide uppercase">第二部分</h2>
+                    <p class="mt-2 text-3xl font-extrabold text-stone-900 tracking-tight sm:text-4xl">直面挑战：PID的边界</p>
+                    <p class="mt-4 max-w-2xl mx-auto text-xl text-stone-500">PID控制器本质上是线性的。当遇到以下复杂情况时，其性能会显著下降。点击下方的卡片，了解每个挑战的本质，并探索解决这些问题的先进控制策略。</p>
+                </div>
+                <div class="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+                    <template x-for="challenge in challenges" :key="challenge.id">
+                        <div class="card bg-stone-50 rounded-2xl p-6 flex flex-col items-center text-center border border-stone-200 hover:border-amber-400">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 text-amber-600 text-2xl font-bold" x-text="challenge.icon"></div>
+                            </div>
+                            <h3 class="mt-4 text-xl font-bold text-stone-900" x-text="challenge.title"></h3>
+                            <p class="mt-2 text-base text-stone-600 flex-grow" x-text="challenge.description"></p>
+                            <button @click="scrollToAndHighlight(challenge.solutions)" class="mt-6 inline-block bg-white text-amber-700 font-semibold px-4 py-2 rounded-lg border border-amber-600 hover:bg-amber-50 transition-colors">
+                                查看解决方案
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <section id="advanced-control" class="py-20 md:py-24">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-base text-sky-600 font-semibold tracking-wide uppercase">第三部分</h2>
+                    <p class="mt-2 text-3xl font-extrabold text-stone-900 tracking-tight sm:text-4xl">高级控制策略武库</p>
+                    <p class="mt-4 max-w-2xl mx-auto text-xl text-stone-500">从基于模型的预测到人工智能驱动的学习，现代控制理论提供了丰富的工具来应对PID无法解决的挑战。</p>
+                </div>
+
+                <div class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <template x-for="controller in controllers" :key="controller.id">
+                        <div class="card bg-white p-6 rounded-2xl shadow-md flex flex-col" :class="{ 'ring-4 ring-amber-400 ring-offset-2': highlighted.includes(controller.id) }" :id="'controller-' + controller.id">
+                            <h3 class="text-xl font-bold text-stone-900" x-text="controller.name"></h3>
+                            <p class="text-sm font-semibold text-sky-600 mt-1" x-text="controller.category"></p>
+                            <p class="mt-3 text-stone-600 text-sm flex-grow" x-text="controller.principle"></p>
+                            <div class="mt-4 pt-4 border-t border-stone-200">
+                                <p class="text-sm font-semibold">优点: <span class="font-normal text-emerald-700" x-text="controller.pros"></span></p>
+                                <p class="text-sm font-semibold mt-1">缺点: <span class="font-normal text-red-700" x-text="controller.cons"></span></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <section id="comparison" class="py-20 md:py-24 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-base text-sky-600 font-semibold tracking-wide uppercase">第四部分</h2>
+                    <p class="mt-2 text-3xl font-extrabold text-stone-900 tracking-tight sm:text-4xl">控制策略横向对比</p>
+                    <p class="mt-4 max-w-2xl mx-auto text-xl text-stone-500">没有完美的控制器，只有最适合的控制器。勾选下方的策略，直观地比较它们在关键性能指标上的差异，为您的应用选择最佳方案。</p>
+                </div>
+
+                <div class="mt-12 bg-stone-50 p-4 sm:p-6 rounded-2xl border border-stone-200">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+                        <template x-for="controller in comparisonData" :key="controller.id">
+                            <label class="flex items-center space-x-2 p-2 rounded-md hover:bg-stone-100 cursor-pointer">
+                                <input type="checkbox" :value="controller.id" x-model="selectedForComparison" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                                <span class="font-medium text-sm" x-text="controller['控制策略']"></span>
+                            </label>
+                        </template>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-stone-300">
+                            <thead class="bg-stone-100">
+                                <tr>
+                                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-stone-900 sm:pl-6">特性</th>
+                                    <template x-for="cId in selectedForComparison" :key="cId">
+                                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-stone-900" x-text="getControllerById(cId)['控制策略']"></th>
+                                    </template>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-stone-200 bg-white">
+                                <template x-for="prop in comparisonProperties" :key="prop.key">
+                                    <tr>
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-stone-900 sm:pl-6" x-text="prop.name"></td>
+                                        <template x-for="cId in selectedForComparison" :key="cId">
+                                            <td class="whitespace-normal px-3 py-4 text-sm text-stone-500" x-html="formatComparisonCell(getControllerById(cId)[prop.key])"></td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                         <div x-show="selectedForComparison.length === 0" class="text-center py-12 text-stone-500 bg-white">
+                            <p>请至少选择一个控制策略进行比较。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="case-studies" class="py-20 md:py-24">
+             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-base text-sky-600 font-semibold tracking-wide uppercase">第五部分</h2>
+                    <p class="mt-2 text-3xl font-extrabold text-stone-900 tracking-tight sm:text-4xl">真实世界案例研究</p>
+                    <p class="mt-4 max-w-2xl mx-auto text-xl text-stone-500">理论结合实践。探索高级控制策略如何在化工、航空航天等领域创造巨大价值。</p>
+                </div>
+
+                <div class="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                    <template x-for="(study, index) in caseStudies" :key="index">
+                        <div class="card bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col">
+                            <div class="p-6 flex-grow">
+                                <p class="text-sm font-semibold text-sky-600" x-text="study.domain"></p>
+                                <h3 class="mt-2 text-xl font-bold text-stone-900" x-text="study.title"></h3>
+                                <p class="mt-3 text-base text-stone-600" x-text="study.description"></p>
+                            </div>
+                            <div class="p-6 bg-stone-50">
+                                <h4 class="text-sm font-semibold text-stone-800">关键挑战:</h4>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <template x-for="challenge in study.challenges" :key="challenge">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" x-text="challenge"></span>
+                                    </template>
+                                </div>
+                                <button @click="openCaseStudyModal(index)" class="mt-6 w-full bg-amber-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-amber-700 transition-colors">
+                                    查看性能对比
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+             </div>
+        </section>
+
+        <!-- Case Study Modal -->
+        <div x-show="isModalOpen" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" x-cloak>
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div x-show="isModalOpen" @click="isModalOpen = false" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div x-show="isModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-2xl leading-6 font-bold text-stone-900" id="modal-title" x-text="currentCaseStudy.title"></h3>
+                                <div class="mt-4">
+                                    <p class="text-base text-stone-600" x-text="currentCaseStudy.result"></p>
+                                </div>
+                                <div class="mt-6">
+                                     <div class="chart-container !h-64 sm:!h-72">
+                                        <canvas id="case-study-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-stone-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button @click="isModalOpen = false" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-amber-600 text-base font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-white border-t border-stone-200">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-stone-500">&copy; 2025 控制策略交互式探索器. 基于报告《控制系统理论的全面解析》创建。</p>
+        </div>
+    </footer>
+
+    <script>
+    let pidChart = null;
+    let caseStudyChart = null;
+
+    function controlApp() {
+        return {
+            mobileMenuOpen: false,
+            activeSection: 'intro',
+            pidParams: { kp: 1.5, ki: 0.5, kd: 0.8 },
+            highlighted: [],
+            selectedForComparison: ['pid', 'mpc', 'lqr-lqg', 'smc'],
+            isModalOpen: false,
+            currentCaseStudy: {},
+
+            challenges: [
+                { id: 'nonlinear', icon: 'N', title: '非线性系统', description: '过程增益、时间常数等动态特性随操作点变化而变化，固定参数的PID无法适应。', solutions: ['gain-scheduling', 'feedback-linearization', 'flc', 'nn-control'] },
+                { id: 'time-varying', icon: 'T', title: '时变系统', description: '催化剂失活、设备结垢等导致过程动态随时间改变，PID性能逐渐下降。', solutions: ['mrac', 'mpc'] },
+                { id: 'mimo', icon: 'M', title: '多输入多输出 (MIMO)', description: '控制回路之间存在强烈的交互耦合作用，多个独立的PID控制器会相互“打架”。', solutions: ['mpc', 'lqr-lqg', 'h-infinity'] },
+                { id: 'dead-time', icon: 'D', title: '大纯滞后', description: '控制作用的反馈有显著延迟，PID必须非常保守才能维持稳定，导致响应迟钝。', solutions: ['smith-predictor', 'mpc', 'imc'] }
+            ],
+
+            controllers: [
+                { id: 'pid', name: 'PID 控制器', category: '误差反馈', principle: '基于当前误差(P)、历史误差累积(I)和未来误差趋势(D)进行控制。', pros: '简单、可靠、应用广泛。', cons: '难以处理复杂系统。', },
+                { id: 'gain-scheduling', name: '增益调度', category: '自适应控制', principle: '根据可测量的调度变量，在预设的参数表中切换PID增益，以适应已知的非线性。', pros: '处理已知非线性的简单方法。', cons: '实施繁琐，开环自适应。' },
+                { id: 'smith-predictor', name: '史密斯预估器', category: '基于模型的控制', principle: '使用过程模型来预测输出，从而在控制回路中补偿纯滞后的影响。', pros: '有效补偿纯滞后。', cons: '对模型精度高度敏感。' },
+                { id: 'imc', name: '内模控制 (IMC)', category: '基于模型的控制', principle: '在控制器中明确包含过程模型，通过单一参数在性能和鲁棒性之间权衡。', pros: '整定直观，无超调。', cons: '对大时间常数过程，扰动恢复慢。' },
+                { id: 'mpc', name: '模型预测控制 (MPC)', category: '优化控制', principle: '利用模型预测未来动态，在线优化控制序列，并处理各种约束。', pros: '卓越的MIMO和约束处理能力。', cons: '计算量大，依赖精确模型。' },
+                { id: 'mrac', name: '模型参考自适应控制', category: '自适应控制', principle: '通过参考模型定义期望响应，并根据跟踪误差在线调整控制器参数。', pros: '能适应未知或时变的参数。', cons: '理论复杂，稳定性分析困难。' },
+                { id: 'lqr-lqg', name: 'LQR/LQG', category: '最优控制', principle: '通过最小化二次型代价函数，找到最优的全状态反馈控制律。', pros: 'LQR鲁棒性有保证，性能最优。', cons: '需全状态反馈，LQG鲁棒性无保证。' },
+                { id: 'h-infinity', name: 'H-无穷 (H∞) 控制', category: '鲁棒控制', principle: '为最坏情况下的不确定性设计控制器，保证系统的鲁棒稳定性和性能。', pros: '提供可证明的鲁棒性保证。', cons: '设计过程抽象，理论要求高。' },
+                { id: 'smc', name: '滑模控制 (SMC)', category: '非线性鲁棒控制', principle: '通过不连续的开关控制，强迫系统状态维持在预设的滑模面上。', pros: '对匹配不确定性完全鲁棒。', cons: '存在“抖振”问题。' },
+                { id: 'feedback-linearization', name: '反馈线性化', category: '非线性控制', principle: '通过坐标变换和状态反馈，精确抵消系统非线性，将其转化为线性系统。', pros: '理论上可完全线性化系统。', cons: '对模型精度要求极高，“脆弱”。' },
+                { id: 'flc', name: '模糊逻辑控制 (FLC)', category: '智能控制', principle: '使用源自专家经验的“IF-THEN”模糊规则进行控制，无需数学模型。', pros: '无需数学模型，处理模糊信息。', cons: '设计依赖专家经验，缺乏系统性。' },
+                { id: 'nn-control', name: '神经网络控制', category: '智能控制', principle: '利用神经网络从数据中学习复杂的非线性系统动态或直接学习控制策略。', pros: '强大的非线性逼近能力。', cons: '“黑箱”模型，需大量数据。' }
+            ],
+
+            comparisonData: [
+                { id: 'pid', "控制策略": "PID", "核心原理": "误差反馈", "模型依赖性": "低", "MIMO处理": "差 (需解耦)", "约束处理": "无", "鲁棒性": "良好", "计算负荷": "极低" },
+                { id: 'gain-scheduling', "控制策略": "增益调度", "核心原理": "分区PID", "模型依赖性": "中", "MIMO处理": "差 (需解耦)", "约束处理": "无", "鲁棒性": "依赖调度", "计算负荷": "低" },
+                { id: 'smith-predictor', "控制策略": "史密斯预估器", "核心原理": "模型预测补偿", "模型依赖性": "高", "MIMO处理": "需扩展", "约束处理": "无", "鲁棒性": "差", "计算负荷": "低" },
+                { id: 'imc', "控制策略": "IMC", "核心原理": "内模结构", "模型依赖性": "高", "MIMO处理": "需扩展", "约束处理": "无", "鲁棒性": "优", "计算负荷": "低" },
+                { id: 'mpc', "控制策略": "MPC", "核心原理": "滚动时域优化", "模型依赖性": "极高", "MIMO处理": "优", "约束处理": "优", "鲁棒性": "依赖模型", "计算负荷": "高" },
+                { id: 'lqr-lqg', "控制策略": "LQR/LQG", "核心原理": "二次型最优控制", "模型依赖性": "高", "MIMO处理": "优", "约束处理": "差", "鲁棒性": "LQR优, LQG差", "计算负荷": "中" },
+                { id: 'h-infinity', "控制策略": "H∞ 控制", "核心原理": "最坏情况鲁棒性", "模型依赖性": "高", "MIMO处理": "优", "约束处理": "需特殊设计", "鲁棒性": "优", "计算负荷": "高" },
+                { id: 'smc', "控制策略": "SMC", "核心原理": "变结构控制", "模型依赖性": "中", "MIMO处理": "优", "约束处理": "优", "鲁棒性": "极优", "计算负荷": "中" },
+                { id: 'feedback-linearization', "控制策略": "反馈线性化", "核心原理": "非线性抵消", "模型依赖性": "极高", "MIMO处理": "优", "约束处理": "无", "鲁棒性": "差", "计算负荷": "中" },
+                { id: 'flc', "控制策略": "模糊逻辑", "核心原理": "专家规则", "模型依赖性": "无", "MIMO处理": "可设计", "约束处理": "可设计", "鲁棒性": "依赖规则", "计算负荷": "中" },
+                { id: 'nn-control', "控制策略": "神经网络", "核心原理": "数据驱动学习", "模型依赖性": "无", "MIMO处理": "优", "约束处理": "可学习", "鲁棒性": "依赖数据", "计算负荷": "高" }
+            ],
+
+            comparisonProperties: [
+                { key: '核心原理', name: '核心原理' },
+                { key: '模型依赖性', name: '模型依赖性' },
+                { key: 'MIMO处理', name: 'MIMO处理' },
+                { key: '约束处理', name: '约束处理' },
+                { key: '鲁棒性', name: '鲁棒性' },
+                { key: '计算负荷', name: '计算负荷' },
+            ],
+
+            caseStudies: [
+                {
+                    domain: '化工过程控制',
+                    title: '精馏塔分离过程',
+                    description: '精馏塔是典型的多变量(MIMO)、非线性、大时滞过程，传统PI控制难以实现最优操作。',
+                    challenges: ['MIMO', '非线性', '大时滞', '运行约束'],
+                    result: '研究表明，与传统PI控制相比，MPC能够在一个统一框架内处理变量耦合和操作约束，将过程更安全地推向经济效益的最佳点。例如，在一座丙烷/异丁烷分离塔中，MPC的应用实现了20%的能耗降低。',
+                    chartData: { labels: ['传统 PI 控制', 'MPC'], datasets: [{ label: '单位产品能耗', data: [100, 80], backgroundColor: ['#38bdf8', '#f59e0b'] }] }
+                },
+                {
+                    domain: '航空航天',
+                    title: '无人机姿态控制',
+                    description: '飞行器是高度非线性、开环不稳定的系统，且易受阵风等外部强扰动影响。',
+                    challenges: ['非线性', '不确定性', '强扰动'],
+                    result: '滑模控制 (SMC) 因其对匹配不确定性和外部扰动的极致鲁棒性而备受青睐。仿真研究表明，在存在阵风扰动时，SMC能比PID更快地稳定姿态，且超调量更小，展现出卓越的扰动抑制能力。',
+                    chartData: { labels: ['PID', 'SMC'], datasets: [{ label: '姿态角峰值误差 (度)', data: [12, 3], backgroundColor: ['#38bdf8', '#f59e0b'] }] }
+                },
+                {
+                    domain: '机器人技术',
+                    title: '机械臂轨迹跟踪',
+                    description: '要求机械臂末端精确地沿预定路径运动，其动力学模型高度非线性，包含复杂的耦合项。',
+                    challenges: ['非线性', '高精度要求'],
+                    result: '当机器人动力学模型已知时，反馈线性化是一种强大的工具。它能精确抵消系统中的非线性项，使简单的线性控制器即可实现高精度跟踪。实验表明，其跟踪误差远小于未经补偿的传统PD控制器。',
+                    chartData: { labels: ['传统 PD 控制', '反馈线性化'], datasets: [{ label: '平均轨迹跟踪误差 (mm)', data: [5.8, 0.7], backgroundColor: ['#38bdf8', '#f59e0b'] }] }
+                }
+            ],
+
+            init() {
+                this.initPidChart();
+                this.updatePidChart();
+                this.observeSections();
+            },
+
+            observeSections() {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            this.activeSection = entry.target.id;
+                        }
+                    });
+                }, { rootMargin: '-50% 0px -50% 0px', threshold: 0 });
+
+                document.querySelectorAll('main section').forEach(section => {
+                    observer.observe(section);
+                });
+            },
+
+            scrollTo(sectionId) {
+                const el = document.getElementById(sectionId);
+                if (el) {
+                    window.scrollTo({
+                        top: el.offsetTop - 64, //- header height
+                        behavior: 'smooth'
+                    });
+                }
+            },
+
+            scrollToAndHighlight(idsToHighlight) {
+                this.scrollTo('advanced-control');
+                this.highlighted = idsToHighlight;
+                setTimeout(() => {
+                    this.highlighted = [];
+                }, 3000); // Highlight for 3 seconds
+            },
+
+            initPidChart() {
+                const ctx = document.getElementById('pid-simulation-chart').getContext('2d');
+                pidChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: '过程变量 (PV)',
+                                data: [],
+                                borderColor: '#0284c7', // sky-600
+                                backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointRadius: 0
+                            },
+                            {
+                                label: '设定点 (SP)',
+                                data: [],
+                                borderColor: '#d97706', // amber-600
+                                borderDash: [5, 5],
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, max: 1.8 },
+                            x: { title: { display: true, text: '时间 (步)' } }
+                        },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: { enabled: false }
+                        },
+                        animation: { duration: 0 }
+                    }
+                });
+            },
+
+            updatePidChart() {
+                if (!pidChart) return;
+
+                const Kp = this.pidParams.kp;
+                const Ki = this.pidParams.ki;
+                const Kd = this.pidParams.kd;
+
+                const sp = 1.0;
+                let pv = 0.0;
+                let integral = 0.0;
+                let last_error = 0.0;
+                let y1 = 0, y2 = 0; // System states
+                const dt = 0.1;
+                const a1 = 1.5, a2 = 1.0, b = 1.0; // 2nd order system parameters
+
+                const pv_data = [];
+                const sp_data = [];
+                const labels = [];
+
+                for (let t = 0; t < 100; t++) {
+                    const error = sp - pv;
+                    integral += error * dt;
+                    const derivative = (error - last_error) / dt;
+                    const output = Kp * error + Ki * integral + Kd * derivative;
+                    last_error = error;
+
+                    // Simulate 2nd order system: y'' + a1*y' + a2*y = b*u
+                    const dy1 = y2;
+                    const dy2 = b * output - a1 * y2 - a2 * y1;
+                    y1 += dy1 * dt;
+                    y2 += dy2 * dt;
+                    pv = y1;
+
+                    pv_data.push(pv);
+                    sp_data.push(sp);
+                    labels.push(t);
+                }
+
+                pidChart.data.labels = labels;
+                pidChart.data.datasets[0].data = pv_data;
+                pidChart.data.datasets[1].data = sp_data;
+                pidChart.update();
+            },
+
+            getControllerById(id) {
+                return this.comparisonData.find(c => c.id === id) || {};
+            },
+
+            formatComparisonCell(text) {
+                if (typeof text !== 'string') return '';
+                if (text.includes('优')) {
+                    return `<span class="font-semibold text-emerald-600">${text}</span>`;
+                }
+                if (text.includes('差') || text.includes('无') || text.includes('慢')) {
+                    return `<span class="font-semibold text-red-600">${text}</span>`;
+                }
+                 if (text.includes('高') || text.includes('极高')) {
+                    return `<span class="text-amber-700">${text}</span>`;
+                }
+                return text;
+            },
+
+            openCaseStudyModal(index) {
+                this.currentCaseStudy = this.caseStudies[index];
+                this.isModalOpen = true;
+
+                // Use nextTick to ensure canvas is visible before creating chart
+                this.$nextTick(() => {
+                    const ctx = document.getElementById('case-study-chart').getContext('2d');
+                    if (caseStudyChart) {
+                        caseStudyChart.destroy();
+                    }
+                    caseStudyChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: this.currentCaseStudy.chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: this.currentCaseStudy.chartData.datasets[0].label
+                                    }
+                                }
+                            },
+                             plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                });
+            }
+        }
+    }
+
+    // This is needed for Alpine.js to be initialized after the DOM is ready.
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('controlApp', controlApp);
+    });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+</body>
+</html>

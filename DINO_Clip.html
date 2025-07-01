@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DINO vs CLIP: 交互式分析报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Chosen Palette: Neutral Academia -->
+    <!-- Application Structure Plan: The application is structured into five thematic sections navigated by a sticky header, promoting non-linear exploration. 1) '概览' uses a side-by-side card layout for a quick introduction. 2) '模型剖析' employs a tab-like structure with simplified HTML/CSS diagrams to explain the core architectures of DINO and CLIP without overwhelming the user. 3) '性能对决' is the interactive core, featuring a dynamic Chart.js visualization that allows users to compare model performance across different tasks, directly engaging them with the data. 4) '生态影响' uses a visually appealing grid of cards to showcase real-world applications. 5) '未来与反思' concludes by discussing model fusion and critical issues like bias. This structure transforms the dense report into a digestible, task-oriented journey, prioritizing user understanding and engagement over a linear presentation. -->
+    <!-- Visualization & Content Choices: 1. **Model Architectures**: Goal: Organize/Inform. Method: HTML/CSS diagrams using flexbox, borders, and text, avoiding complex graphics. Interaction: Minimal, focused on clarity. Justification: Provides a clear, low-overhead visualization of complex systems. 2. **Performance Comparison**: Goal: Compare. Method: Interactive Bar Chart (Chart.js/Canvas). Interaction: User clicks buttons to dynamically update the chart data for different tasks (Classification, Segmentation, Depth Estimation). Justification: This is the most effective way to show direct quantitative comparisons and engage the user in data exploration. It directly visualizes Table 3 from the report. 3. **Ecosystem Impact**: Goal: Inform. Method: A responsive grid of styled cards with icons (Unicode) and text. Interaction: Hover effects for visual feedback. Justification: A scannable, visually pleasing way to present a list of applications. 4. **Fusion Concept**: Goal: Inform/Organize. Method: Simple HTML/CSS flow diagram. Justification: Visualizes the concept of combining models in an abstract, easy-to-understand manner. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #F8F7F4;
+            color: #383838;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 45vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 450px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s ease, border-color 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #D66853;
+            border-bottom-color: #D66853;
+        }
+        .btn-active {
+            background-color: #3F7D20 !important;
+            color: white !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .flow-arrow::after {
+            content: '→';
+            font-size: 1.5rem;
+            color: #D66853;
+            margin: 0 1rem;
+        }
+        .flow-arrow:last-child::after {
+            content: '';
+        }
+        .plus-symbol::after {
+            content: '+';
+            font-size: 2rem;
+            color: #D66853;
+            font-weight: bold;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header & Navigation -->
+    <header id="header" class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-gray-800">DINO vs. CLIP</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="nav-link px-3 py-2 text-sm font-medium text-gray-600">概览</a>
+                        <a href="#deep-dive" class="nav-link px-3 py-2 text-sm font-medium text-gray-600">模型剖析</a>
+                        <a href="#performance" class="nav-link px-3 py-2 text-sm font-medium text-gray-600">性能对决</a>
+                        <a href="#ecosystem" class="nav-link px-3 py-2 text-sm font-medium text-gray-600">生态影响</a>
+                        <a href="#future" class="nav-link px-3 py-2 text-sm font-medium text-gray-600">未来与反思</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <select id="mobile-nav" class="bg-gray-200 border border-gray-300 rounded-md p-2 text-sm">
+                        <option value="#overview">概览</option>
+                        <option value="#deep-dive">模型剖析</option>
+                        <option value="#performance">性能对决</option>
+                        <option value="#ecosystem">生态影响</option>
+                        <option value="#future">未来与反思</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Section 1: Overview -->
+        <section id="overview" class="py-20 sm:py-28 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">视觉基础模型的两大支柱</h2>
+                <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-600">探索两种截然不同的学习范式如何定义现代计算机视觉的未来：一种向内探索视觉结构，一种向外关联人类语言。</p>
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                    <!-- DINO Card -->
+                    <div class="bg-[#EEF3F7] p-8 rounded-2xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <div class="inline-block bg-white p-3 rounded-xl mb-4">
+                            <span class="text-4xl">👁️</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-800">DINO: 从视觉结构中学习</h3>
+                        <p class="mt-4 text-gray-600 text-left">DINO代表“无标签自蒸馏”，是一种纯粹的**自监督学习**方法。它通过强迫模型对同一图像的不同视图（如裁剪、变色）产生一致的输出来学习。其核心哲学是：深刻的视觉知识内在于图像数据本身，无需任何外部标签，仅通过探索不变性即可提取。</p>
+                        <div class="mt-6 text-left">
+                            <h4 class="font-semibold text-gray-700">核心优势:</h4>
+                            <ul class="mt-2 list-disc list-inside text-gray-600 space-y-1">
+                                <li>卓越的空间感知能力</li>
+                                <li>强大的密集预测任务性能（如分割）</li>
+                                <li>无需任何文本或标签数据</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- CLIP Card -->
+                    <div class="bg-[#FDF0E9] p-8 rounded-2xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <div class="inline-block bg-white p-3 rounded-xl mb-4">
+                            <span class="text-4xl">🗣️</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-800">CLIP: 从语言关联中学习</h3>
+                        <p class="mt-4 text-gray-600 text-left">CLIP代表“对比语言-图像预训练”，是一种**语言监督学习**的里程碑。它在海量的“图像-文本”配对上训练，学习将图像与描述它的自然语言在语义上关联起来。其哲学是：视觉概念的“意义”可以通过它们与人类语言的对应关系来掌握。</p>
+                        <div class="mt-6 text-left">
+                            <h4 class="font-semibold text-gray-700">核心优势:</h4>
+                            <ul class="mt-2 list-disc list-inside text-gray-600 space-y-1">
+                                <li>惊人的零样本分类能力</li>
+                                <li>理解抽象概念和艺术风格</li>
+                                <li>赋能开放词汇和文生图模型</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Model Deep Dive -->
+        <section id="deep-dive" class="py-20 sm:py-28">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">模型架构剖析</h2>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-600">深入了解DINO和CLIP内部的巧妙设计，它们是如何实现各自的学习目标的。</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+                    <!-- DINO Architecture -->
+                    <div class="bg-white p-8 rounded-2xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">DINO: 学生-教师自蒸馏框架</h3>
+                        <p class="text-gray-600 mb-6">DINO的核心是一个学生-教师网络。学生网络通过梯度下降学习，目标是匹配动量更新的教师网络的输出。这种机制提供了稳定的学习信号，有效防止了自监督学习中常见的“模型坍塌”问题。</p>
+                        <div class="border-2 border-dashed border-blue-200 rounded-lg p-6 flex flex-col items-center space-y-4 bg-blue-50/50">
+                            <div class="text-center font-semibold text-blue-800">输入图像</div>
+                            <div class="flex justify-around w-full">
+                                <div class="text-center">
+                                    <div class="w-20 h-20 bg-blue-200 rounded-lg flex items-center justify-center">全局视图1</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="w-20 h-20 bg-blue-200 rounded-lg flex items-center justify-center">局部视图...</div>
+                                </div>
+                            </div>
+                            <div class="text-2xl text-blue-500">↓</div>
+                            <div class="grid grid-cols-2 gap-4 w-full text-center">
+                                <div class="bg-white p-4 rounded-lg border-2 border-blue-400">
+                                    <h4 class="font-bold text-blue-900">教师网络</h4>
+                                    <p class="text-xs text-gray-500">(动量更新, 无梯度)</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg border-2 border-blue-400">
+                                    <h4 class="font-bold text-blue-900">学生网络</h4>
+                                    <p class="text-xs text-gray-500">(梯度下降更新)</p>
+                                </div>
+                            </div>
+                            <div class="text-2xl text-blue-500">↓</div>
+                            <div class="font-semibold text-blue-800">最小化输出分布差异 (交叉熵损失)</div>
+                        </div>
+                        <p class="mt-6 text-gray-600">最引人注目的“涌现属性”是，DINO训练的ViT模型自发地学会了**语义分割**，其自注意力图能够清晰地勾勒出物体的轮廓，而无需任何像素级标注。</p>
+                    </div>
+
+                    <!-- CLIP Architecture -->
+                    <div class="bg-white p-8 rounded-2xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">CLIP: 双编码器对比学习框架</h3>
+                        <p class="text-gray-600 mb-6">CLIP采用双塔架构，一个图像编码器和一个文本编码器被联合优化，将图像和文本映射到一个共享的嵌入空间。训练目标是让匹配的图文对的向量相似度最大化，不匹配的则最小化。</p>
+                        <div class="border-2 border-dashed border-orange-200 rounded-lg p-6 flex flex-col items-center space-y-4 bg-orange-50/50">
+                             <div class="grid grid-cols-2 gap-4 w-full text-center">
+                                <div class="bg-white p-4 rounded-lg border-2 border-orange-400">
+                                    <h4 class="font-bold text-orange-900">图像编码器</h4>
+                                    <p class="text-xs text-gray-500">输入: 一张图片 🖼️</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg border-2 border-orange-400">
+                                    <h4 class="font-bold text-orange-900">文本编码器</h4>
+                                    <p class="text-xs text-gray-500">输入: 一段文本 📝</p>
+                                </div>
+                            </div>
+                            <div class="text-2xl text-orange-500">↓</div>
+                             <div class="font-semibold text-orange-800">投影至共享嵌入空间</div>
+                             <div class="text-2xl text-orange-500">↓</div>
+                             <div class="font-semibold text-orange-800">对比损失：拉近正样本，推开负样本</div>
+                        </div>
+                        <p class="mt-6 text-gray-600">其革命性能力是**零样本分类**。通过将类别名构造成“一张...的照片”等提示，CLIP无需任何训练样本就能对新任务进行分类，展现了强大的泛化能力。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Section 3: Performance Showdown -->
+        <section id="performance" class="py-20 sm:py-28 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">性能正面对决</h2>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-600">通过交互式图表直观对比DINOv2和OpenCLIP在关键下游任务上的性能表现。点击下方按钮切换不同任务的对比数据。</p>
+                </div>
+
+                <div class="bg-[#F8F7F4] p-6 sm:p-8 rounded-2xl shadow-inner">
+                    <div class="flex flex-wrap justify-center gap-2 sm:gap-4 mb-8">
+                        <button class="task-btn bg-white px-4 py-2 rounded-full shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-100 transition" data-task="classification">分类 (线性评估)</button>
+                        <button class="task-btn bg-white px-4 py-2 rounded-full shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-100 transition" data-task="segmentation">语义分割 (mIoU)</button>
+                        <button class="task-btn bg-white px-4 py-2 rounded-full shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-100 transition" data-task="depth">深度估计 (RMSE)</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                    <p id="chart-note" class="text-center text-sm text-gray-500 mt-4"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Ecosystem Impact -->
+        <section id="ecosystem" class="py-20 sm:py-28">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                 <div class="text-center mb-16">
+                    <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">生态系统影响</h2>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-600">DINO和CLIP不仅仅是模型，它们是驱动新一代AI应用创新的基础构建模块。</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg text-center transform hover:-translate-y-2 transition-transform duration-300">
+                        <span class="text-4xl mb-3 inline-block">🎯</span>
+                        <h4 class="font-bold text-lg">密集预测</h4>
+                        <p class="text-sm text-gray-600 mt-2">DINOv2已成为语义分割和深度估计任务的首选特征提取器，其空间感知能力无与伦比。</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-lg text-center transform hover:-translate-y-2 transition-transform duration-300">
+                        <span class="text-4xl mb-3 inline-block">🤖</span>
+                        <h4 class="font-bold text-lg">机器人学</h4>
+                        <p class="text-sm text-gray-600 mt-2">DINOv2的细粒度特征帮助机器人理解物体几何与功能，用于灵巧抓取和导航。</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-lg text-center transform hover:-translate-y-2 transition-transform duration-300">
+                        <span class="text-4xl mb-3 inline-block">🎨</span>
+                        <h4 class="font-bold text-lg">文生图模型</h4>
+                        <p class="text-sm text-gray-600 mt-2">CLIP的文本编码器是Stable Diffusion等模型的基石，将文本提示转化为引导图像生成的语义向量。</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-lg text-center transform hover:-translate-y-2 transition-transform duration-300">
+                        <span class="text-4xl mb-3 inline-block">🔍</span>
+                        <h4 class="font-bold text-lg">开放词汇检测</h4>
+                        <p class="text-sm text-gray-600 mt-2">CLIP的零样本能力使模型能够检测任意文本描述的物体，突破了固定类别的限制。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg text-center transform hover:-translate-y-2 transition-transform duration-300">
+                        <span class="text-4xl mb-3 inline-block">🎬</span>
+                        <h4 class="font-bold text-lg">视频分析</h4>
+                        <p class="text-sm text-gray-600 mt-2">DINO的块级特征被用于实现强大的视频密集跟踪，CLIP则提供高层语义理解。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg text-center transform hover:-translate-y-2 transition-transform duration-300">
+                        <span class="text-4xl mb-3 inline-block">🏷️</span>
+                        <h4 class="font-bold text-lg">自动数据标注</h4>
+                        <p class="text-sm text-gray-600 mt-2">基础模型将标注员从“劳工”变为“监工”，通过模型辅助标注将效率提升数十倍。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Future & Critique -->
+        <section id="future" class="py-20 sm:py-28 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">未来融合与批判性反思</h2>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-600">未来的突破在于协同，而非竞争。同时，我们必须正视这些强大模型带来的社会挑战。</p>
+                </div>
+
+                <div class="bg-[#F8F7F4] p-8 rounded-2xl shadow-inner mb-12">
+                    <h3 class="text-2xl font-bold text-center text-gray-800 mb-6">协同的未来：集两者之长</h3>
+                    <p class="text-center text-gray-600 mb-8">研究的趋势是将DINO的空间精度与CLIP的语义灵活性结合，创造一个统一的、能力更全面的视觉基础模型。</p>
+                    <div class="flex flex-col md:flex-row items-center justify-center relative">
+                        <div class="text-center p-4 m-2 bg-white rounded-lg shadow-md w-48 flow-arrow">
+                            <h4 class="font-bold text-blue-800">DINO 特征</h4>
+                            <p class="text-sm text-gray-500">空间精度</p>
+                        </div>
+                        <div class="hidden md:block absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-4 shadow-lg plus-symbol w-16 h-16"></div>
+                         <div class="text-center p-4 m-2 bg-white rounded-lg shadow-md w-48 flow-arrow">
+                            <h4 class="font-bold text-orange-800">CLIP 特征</h4>
+                            <p class="text-sm text-gray-500">语义灵活性</p>
+                        </div>
+                        <div class="text-center p-6 m-2 bg-gradient-to-r from-blue-100 to-orange-100 rounded-lg shadow-md w-48">
+                             <h4 class="font-bold text-green-800">融合模型</h4>
+                            <p class="text-sm text-gray-500">更高性能</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-6 rounded-r-lg shadow-lg">
+                    <h3 class="text-xl font-bold mb-3">重要的反思：社会偏见挑战</h3>
+                    <p class="text-base">CLIP及其衍生模型面临的最严峻挑战之一是社会偏见。由于其训练数据源自未经筛选的互联网，模型会忠实地学习并放大现实世界中存在的有害刻板印象（如性别与职业、种族与特定概念的关联）。去偏见是一个复杂的开放性问题，需要从数据、模型和应用等多个层面进行系统性解决，以确保AI技术发展的公平与负责任。</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center text-sm">
+            <p>基于《DINO与CLIP综合分析报告》构建的交互式Web应用。</p>
+            <p class="mt-1 opacity-70">仅用于演示目的。</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const performanceData = {
+        classification: {
+            label: 'ImageNet-1k 分类 (线性评估, Top-1 准确率)',
+            labels: ['DINOv2 (ViT-g/14)', 'OpenCLIP (ViT-G/14)'],
+            values: [86.5, 86.2],
+            unit: '%',
+            note: '数值越高越好。DINOv2在该项上表现出微弱优势。',
+            backgroundColor: ['#3b82f6', '#f97316'],
+        },
+        segmentation: {
+            label: 'ADE20k 语义分割 (mIoU)',
+            labels: ['DINOv2 (ViT-g/14)', 'OpenCLIP (ViT-G/14)'],
+            values: [53.0, 46.0],
+            unit: '%',
+            note: 'mIoU (平均交并比)越高越好。DINOv2在密集预测任务上优势显著。',
+            backgroundColor: ['#3b82f6', '#f97316'],
+        },
+        depth: {
+            label: 'NYUv2 深度估计 (RMSE)',
+            labels: ['DINOv2 (ViT-g/14)', 'OpenCLIP (ViT-G/14)'],
+            values: [0.279, 0.414],
+            unit: '',
+            note: 'RMSE (均方根误差)越低越好。DINOv2的空间感知能力再次胜出。',
+            backgroundColor: ['#3b82f6', '#f97316'],
+        }
+    };
+
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    const chartNote = document.getElementById('chart-note');
+    let performanceChart;
+
+    function createOrUpdateChart(taskName) {
+        if (performanceChart) {
+            performanceChart.destroy();
+        }
+
+        const data = performanceData[taskName];
+
+        performanceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: data.label,
+                    data: data.values,
+                    backgroundColor: data.backgroundColor,
+                    borderColor: data.backgroundColor.map(color => color.replace('0.8', '1')),
+                    borderWidth: 1,
+                    borderRadius: 5,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: data.label,
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        color: '#334155'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y + data.unit;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                             callback: function(value) {
+                                return value + data.unit;
+                            },
+                            color: '#475569'
+                        },
+                        title: {
+                            display: true,
+                            text: '性能指标',
+                            color: '#475569'
+                        }
+                    },
+                    x: {
+                         grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#475569'
+                        }
+                    }
+                }
+            }
+        });
+
+        chartNote.textContent = data.note;
+    }
+
+    const taskButtons = document.querySelectorAll('.task-btn');
+    taskButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            taskButtons.forEach(btn => btn.classList.remove('btn-active'));
+            button.classList.add('btn-active');
+            createOrUpdateChart(button.dataset.task);
+        });
+    });
+
+    // Mobile navigation
+    const mobileNav = document.getElementById('mobile-nav');
+    mobileNav.addEventListener('change', (e) => {
+        window.location.hash = e.target.value;
+    });
+
+    // Initial chart
+    document.querySelector('.task-btn[data-task="classification"]').classList.add('btn-active');
+    createOrUpdateChart('classification');
+
+    // Active nav link scrolling
+    const sections = document.querySelectorAll('section');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                });
+                mobileNav.value = `#${entry.target.id}`;
+            }
+        });
+    }, { threshold: 0.5 });
+
+    sections.forEach(section => {
+        observer.observe(section);
+    });
+});
+</script>
+
+</body>
+</html>

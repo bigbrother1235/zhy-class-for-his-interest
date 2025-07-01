@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动控制原理交互式学习应用</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Beige, Slate, Terracotta, Sage) -->
+    <!-- Application Structure Plan: 本应用采用非线性的、以交互模块为核心的仪表盘式布局，而非报告式的线性结构。顶部导航栏按“导论”、“经典理论”、“现代理论”和“核心概念”四大主题划分，允许用户自由探索。此结构旨在将抽象、密集的理论知识分解为易于消化的、可动手操作的学习单元，特别是“核心概念”区域的交互式图表，使用户能通过调整参数直观感受理论效果，极大地提升了学习体验和对复杂概念的理解深度，解决了纯文本学习枯燥且难以理解的痛点。 -->
+    <!-- Visualization & Content Choices:
+        1. 二阶系统时域响应: 目标(探索变化) -> Chart.js线图 + 滑块(交互) -> 实时展示阻尼比(ζ)和自然频率(ωn)对系统动态性能（超调量、调节时间）的直观影响。理由：这是时域分析最核心、最基础的概念，交互可视化是最佳学习方式。
+        2. 根轨迹分析: 目标(探索关系) -> HTML5 Canvas绘图 + 滑块(交互) -> 动态展示开环增益K变化时，闭环极点在s平面上的移动轨迹。理由：将根轨迹从静态图形变为动态过程，清晰揭示增益与稳定性和响应模式的关系。
+        3. 频域分析Bode图: 目标(比较与分析) -> Chart.js线图 + 滑块(交互) -> 通过调整增益K，观察Bode图幅频特性的上下平移，并实时计算和显示相位/增益裕度。理由：直观阐释频域稳定裕度的概念，是控制器校正的基础。
+        4. PID控制器调谐: 目标(探索与优化) -> Chart.js线图 + 滑块(交互) -> 允许用户分别调整P, I, D三个参数，实时观察系统响应曲线的变化。理由：提供了一个PID参数整定的虚拟实验室，将理论与实践紧密结合。
+        所有可视化均未使用SVG或Mermaid。 -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #fdfbf7;
+            color: #3d405b;
+        }
+        .nav-btn {
+            @apply px-4 py-2 rounded-lg transition-colors duration-300;
+        }
+        .nav-btn.active {
+            @apply bg-[#e07a5f] text-white shadow-md;
+        }
+        .nav-btn:not(.active) {
+            @apply hover:bg-[#f2cc8f] hover:text-[#3d405b];
+        }
+        .content-section {
+            @apply hidden;
+        }
+        .content-section.active {
+            @apply block;
+        }
+        .card {
+            @apply bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-gray-200/50 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1;
+        }
+        .slider-label {
+            @apply w-32 text-right pr-4;
+        }
+        .slider-value {
+            @apply w-20 text-left font-semibold text-[#e07a5f];
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #f2cc8f;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type=range]:hover {
+            opacity: 1;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #e07a5f;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #e07a5f;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto px-4 py-8">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-[#3d405b]">自动控制原理</h1>
+            <p class="mt-2 text-lg text-gray-500">一个交互式学习探索平台</p>
+        </header>
+
+        <nav class="flex flex-wrap justify-center gap-2 md:gap-4 mb-10 p-2 bg-white/60 backdrop-blur-sm rounded-xl shadow-sm sticky top-4 z-10">
+            <button class="nav-btn active" data-target="intro">导论</button>
+            <button class="nav-btn" data-target="concepts">核心概念交互</button>
+            <button class="nav-btn" data-target="classical">经典控制理论</button>
+            <button class="nav-btn" data-target="modern">现代控制理论</button>
+        </nav>
+
+        <main>
+            <section id="intro" class="content-section active">
+                <div class="space-y-8">
+                    <div class="card">
+                        <h2 class="text-2xl font-bold mb-4 text-[#81b29a]">什么是自动控制？</h2>
+                        <p class="text-gray-700 leading-relaxed">自动控制是指在没有人直接参与的情况下，利用控制装置使生产过程或被控对象的某些物理量（被控量）自动地按照预定的规律运行。其核心思想是通过**反馈**机制，不断地测量实际值与期望值的偏差，并根据偏差来调整控制作用，从而抵抗扰动，实现精确控制。任何控制系统的存在，都是为了实现一个预设的目标。</p>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-2xl font-bold mb-4 text-[#81b29a]">对控制系统的基本要求：稳、准、快</h2>
+                        <div class="grid md:grid-cols-3 gap-6 text-center">
+                            <div>
+                                <div class="text-5xl mb-2">⚖️</div>
+                                <h3 class="font-semibold text-lg">稳定性 (Stability)</h3>
+                                <p class="text-sm text-gray-600">系统能正常工作的首要前提。指系统在扰动消失后，能恢复到原平衡状态的能力。不稳定的系统是无用的。</p>
+                            </div>
+                            <div>
+                                <div class="text-5xl mb-2">🎯</div>
+                                <h3 class="font-semibold text-lg">准确性 (Accuracy)</h3>
+                                <p class="text-sm text-gray-600">指系统稳态输出值与期望值的接近程度，通常用稳态误差来衡量。精度是控制质量的关键指标。</p>
+                            </div>
+                            <div>
+                                <div class="text-5xl mb-2">⚡️</div>
+                                <h3 class="font-semibold text-lg">快速性 (Rapidity)</h3>
+                                <p class="text-sm text-gray-600">指系统响应的迅速程度，即过渡过程时间的长短。快速性决定了系统的动态响应效率。</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="card">
+                        <h2 class="text-2xl font-bold mb-4 text-[#81b29a]">发展简史</h2>
+                        <div class="relative pl-6 border-l-2 border-[#f2cc8f]">
+                            <div class="mb-8">
+                                <div class="absolute w-4 h-4 bg-[#e07a5f] rounded-full -left-2 mt-1"></div>
+                                <p class="font-bold">1788年</p>
+                                <p class="text-sm text-gray-600">瓦特将离心式调速器用于蒸汽机，标志着反馈控制的大规模应用开启。</p>
+                            </div>
+                            <div class="mb-8">
+                                <div class="absolute w-4 h-4 bg-[#e07a5f] rounded-full -left-2 mt-1"></div>
+                                <p class="font-bold">1877年</p>
+                                <p class="text-sm text-gray-600">麦克斯韦、劳斯等人首次用数学方法分析稳定性，控制理论科学化。</p>
+                            </div>
+                             <div class="mb-8">
+                                <div class="absolute w-4 h-4 bg-[#e07a5f] rounded-full -left-2 mt-1"></div>
+                                <p class="font-bold">1932年</p>
+                                <p class="text-sm text-gray-600">奈奎斯特提出频率法稳定判据，奠定了经典控制理论频域分析的基础。</p>
+                            </div>
+                            <div class="mb-8">
+                                <div class="absolute w-4 h-4 bg-[#e07a5f] rounded-full -left-2 mt-1"></div>
+                                <p class="font-bold">20世纪50-60年代</p>
+                                <p class="text-sm text-gray-600">为满足航天需求，状态空间法、最优控制、卡尔曼滤波等现代控制理论诞生。</p>
+                            </div>
+                             <div>
+                                <div class="absolute w-4 h-4 bg-[#e07a5f] rounded-full -left-2 mt-1"></div>
+                                <p class="font-bold">至今</p>
+                                <p class="text-sm text-gray-600">与AI、大数据等技术深度融合，向数据驱动、智能自主控制方向发展。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="concepts" class="content-section">
+                <div class="space-y-8">
+                    <div class="card">
+                        <h2 class="text-2xl font-bold mb-2">二阶系统时域响应分析</h2>
+                        <p class="text-gray-600 mb-4 text-sm">二阶系统是控制系统分析的基础。其动态特性由阻尼比(ζ)和无阻尼自然振荡频率(ωn)共同决定。拖动下方滑块，观察系统单位阶跃响应曲线的变化，直观感受它们对“快”和“稳”的影响。</p>
+                        <div class="chart-container mb-4">
+                            <canvas id="stepResponseChart"></canvas>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <div class="flex items-center mb-2">
+                                    <label for="zetaSlider" class="slider-label">阻尼比 ζ:</label>
+                                    <input type="range" id="zetaSlider" min="0" max="2" step="0.01" value="0.5" class="flex-grow">
+                                    <span id="zetaValue" class="slider-value">0.50</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <label for="omegaNSlider" class="slider-label">自然频率 ωn:</label>
+                                    <input type="range" id="omegaNSlider" min="1" max="10" step="0.1" value="3" class="flex-grow">
+                                    <span id="omegaNValue" class="slider-value">3.0</span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-sm">
+                                <h4 class="font-semibold mb-2">性能指标:</h4>
+                                <p>超调量 (σ%): <span id="overshootValue" class="font-mono font-semibold">16.30%</span></p>
+                                <p>峰值时间 (tp): <span id="peakTimeValue" class="font-mono font-semibold">1.21 s</span></p>
+                                <p>调节时间 (ts, 2%): <span id="settlingTimeValue" class="font-mono font-semibold">2.67 s</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-2xl font-bold mb-2">根轨迹分析</h2>
+                        <p class="text-gray-600 mb-4 text-sm">根轨迹法展示了当开环增益K从0变化到∞时，闭环系统极点在s平面上的运动轨迹。极点的位置决定了系统的稳定性与动态性能。拖动滑块改变增益K，观察闭环极点（红色圆点）的移动。</p>
+                         <div class="chart-container mb-4 bg-white rounded-lg shadow-inner">
+                            <canvas id="rootLocusCanvas"></canvas>
+                        </div>
+                        <div class="flex items-center">
+                            <label for="kSlider" class="slider-label">开环增益 K:</label>
+                            <input type="range" id="kSlider" min="0" max="150" step="0.1" value="20" class="flex-grow">
+                            <span id="kValue" class="slider-value">20.0</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2 text-center">示例系统开环传递函数: G(s) = K / (s(s+2)(s+5))。蓝色'x'为开环极点。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="classical" class="content-section">
+                <div class="space-y-8">
+                     <div class="card">
+                        <h2 class="text-2xl font-bold mb-2">频域分析与稳定裕度</h2>
+                        <p class="text-gray-600 mb-4 text-sm">频域分析法通过研究系统对正弦信号的响应（频率特性）来判断稳定性。Bode图是其主要工具。相位裕度(PM)和增益裕度(GM)是衡量系统相对稳定性的重要指标。调整增益K，观察Bode图和稳定裕度的变化。</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                             <div class="chart-container"><canvas id="bodeMagChart"></canvas></div>
+                             <div class="chart-container"><canvas id="bodePhaseChart"></canvas></div>
+                        </div>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <div class="flex items-center">
+                                    <label for="bodeKSlider" class="slider-label">开环增益 K:</label>
+                                    <input type="range" id="bodeKSlider" min="1" max="100" step="1" value="10" class="flex-grow">
+                                    <span id="bodeKValue" class="slider-value">10</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">示例系统 G(s) = K / (s(0.5s+1)(0.1s+1))</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-sm">
+                                <h4 class="font-semibold mb-2">稳定裕度:</h4>
+                                <p>相位裕度 (PM): <span id="pmValue" class="font-mono font-semibold">...</span></p>
+                                <p>增益裕度 (GM): <span id="gmValue" class="font-mono font-semibold">...</span></p>
+                                <p>状态: <span id="stabilityStatus" class="font-mono font-semibold">...</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-2xl font-bold mb-2">PID控制器参数整定</h2>
+                        <p class="text-gray-600 mb-4 text-sm">PID控制器是工业应用最广泛的控制器。它通过比例(P)、积分(I)、微分(D)三个环节的组合作用实现精确控制。调整Kp, Ki, Kd参数，体验“PID调参工程师”的工作，观察它们如何共同影响系统响应。</p>
+                        <div class="chart-container mb-4">
+                            <canvas id="pidChart"></canvas>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <div>
+                                <div class="flex items-center mb-1">
+                                    <label for="pSlider" class="w-10">Kp:</label>
+                                    <input type="range" id="pSlider" min="0" max="100" step="1" value="30" class="flex-grow">
+                                    <span id="pValue" class="w-12 text-center">30</span>
+                                </div>
+                                <p class="text-xs text-gray-500 pl-10">比例：即时响应当前误差</p>
+                             </div>
+                            <div>
+                                <div class="flex items-center mb-1">
+                                    <label for="iSlider" class="w-10">Ki:</label>
+                                    <input type="range" id="iSlider" min="0" max="100" step="1" value="20" class="flex-grow">
+                                    <span id="iValue" class="w-12 text-center">20</span>
+                                </div>
+                                <p class="text-xs text-gray-500 pl-10">积分：消除历史累积的稳态误差</p>
+                             </div>
+                             <div>
+                                <div class="flex items-center mb-1">
+                                    <label for="dSlider" class="w-10">Kd:</label>
+                                    <input type="range" id="dSlider" min="0" max="20" step="0.5" value="5" class="flex-grow">
+                                    <span id="dValue" class="w-12 text-center">5.0</span>
+                                </div>
+                                <p class="text-xs text-gray-500 pl-10">微分：预测未来误差，抑制超调</p>
+                             </div>
+                        </div>
+                         <p class="text-xs text-gray-500 mt-2 text-center">被控对象: G(s) = 1 / (s^2 + s + 1)</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="modern" class="content-section">
+                 <div class="card">
+                    <h2 class="text-2xl font-bold mb-4 text-[#81b29a]">现代控制理论：状态空间法</h2>
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-semibold mb-2">核心思想</h3>
+                            <p class="text-gray-700 leading-relaxed mb-4">经典控制理论使用传递函数，关注系统的输入-输出关系，像一个“黑盒子”。而现代控制理论使用**状态空间法**，深入系统内部，用一组“状态变量”来完整描述系统的内部动态。这使其能处理更复杂的多输入多输出(MIMO)、非线性系统。</p>
+                            <div class="bg-gray-100 p-4 rounded-lg font-mono text-sm">
+                                <p><span class="font-bold">状态方程:</span> &#x1E8B;&#x0307; = A&#x1E8B; + Bu</p>
+                                <p><span class="font-bold">输出方程:</span> y = C&#x1E8B; + Du</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-2">两个基本问题</h3>
+                             <div class="space-y-4">
+                                <div>
+                                    <h4 class="font-bold text-lg">能控性 (Controllability)</h4>
+                                    <p class="text-gray-600">我们能通过输入u，在有限时间内将系统状态&#x1E8B;驱动到任意期望的位置吗？如果能，系统就是能控的。这是设计有效控制器的前提。</p>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-lg">能观性 (Observability)</h4>
+                                    <p class="text-gray-600">我们能仅通过观测输出y，来确定系统内部的初始状态&#x1E8B;(0)吗？如果能，系统就是能观的。这是设计状态观测器的前提。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="mt-6 border-t pt-6">
+                         <h3 class="text-xl font-semibold mb-2">设计思想：极点配置</h3>
+                         <p class="text-gray-700 leading-relaxed">现代控制理论最强大的思想之一是**极点配置**。如果一个系统是能控的，我们就可以通过**状态反馈** (u = -Kx) 的方式，任意地配置闭环系统的极点，从而主动地、精确地设计出我们想要的系统动态性能（如响应速度、超调等），而不是像经典理论那样进行“试凑”式的校正。</p>
+                     </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const contentSections = document.querySelectorAll('.content-section');
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    const targetId = button.getAttribute('data-target');
+                    contentSections.forEach(section => {
+                        if (section.id === targetId) {
+                            section.classList.add('active');
+                        } else {
+                            section.classList.remove('active');
+                        }
+                    });
+                });
+            });
+
+            // --- Interactive Module 1: Step Response ---
+            const zetaSlider = document.getElementById('zetaSlider');
+            const omegaNSlider = document.getElementById('omegaNSlider');
+            const zetaValueSpan = document.getElementById('zetaValue');
+            const omegaNValueSpan = document.getElementById('omegaNValue');
+            const overshootValueSpan = document.getElementById('overshootValue');
+            const peakTimeValueSpan = document.getElementById('peakTimeValue');
+            const settlingTimeValueSpan = document.getElementById('settlingTimeValue');
+
+            const stepResponseCtx = document.getElementById('stepResponseChart').getContext('2d');
+            let stepResponseChart = new Chart(stepResponseCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '单位阶跃响应',
+                        data: [],
+                        borderColor: '#e07a5f',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: '时间 (s)' }
+                        },
+                        y: {
+                            title: { display: true, text: '幅值' },
+                            min: 0,
+                            max: 2.0
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            function updateStepResponse() {
+                const zeta = parseFloat(zetaSlider.value);
+                const omega_n = parseFloat(omegaNSlider.value);
+                zetaValueSpan.textContent = zeta.toFixed(2);
+                omegaNValueSpan.textContent = omega_n.toFixed(1);
+
+                const dt = 0.02;
+                const time = Array.from({ length: 401 }, (_, i) => i * dt);
+                let responseData;
+                let overshoot = 0, peakTime = 'N/A', settlingTime = 'N/A';
+
+                if (zeta < 1) { // Underdamped
+                    const omega_d = omega_n * Math.sqrt(1 - zeta * zeta);
+                    responseData = time.map(t => 1 - Math.exp(-zeta * omega_n * t) * (Math.cos(omega_d * t) + zeta / Math.sqrt(1 - zeta * zeta) * Math.sin(omega_d * t)));
+                    overshoot = Math.exp(-Math.PI * zeta / Math.sqrt(1 - zeta * zeta)) * 100;
+                    peakTime = Math.PI / omega_d;
+                    settlingTime = 4 / (zeta * omega_n);
+                } else if (zeta === 1) { // Critically damped
+                    responseData = time.map(t => 1 - (1 + omega_n * t) * Math.exp(-omega_n * t));
+                    overshoot = 0;
+                    peakTime = 'N/A';
+                    settlingTime = 5.83 / omega_n;
+                } else { // Overdamped
+                    const s1 = -zeta * omega_n + omega_n * Math.sqrt(zeta * zeta - 1);
+                    const s2 = -zeta * omega_n - omega_n * Math.sqrt(zeta * zeta - 1);
+                    responseData = time.map(t => 1 + (s1 * Math.exp(s2 * t) - s2 * Math.exp(s1 * t)) / (s2 - s1));
+                    overshoot = 0;
+                    peakTime = 'N/A';
+                    settlingTime = '...';
+                }
+
+                overshootValueSpan.textContent = `${overshoot.toFixed(2)}%`;
+                peakTimeValueSpan.textContent = typeof peakTime === 'number' ? `${peakTime.toFixed(2)} s` : peakTime;
+                settlingTimeValueSpan.textContent = typeof settlingTime === 'number' ? `${settlingTime.toFixed(2)} s` : settlingTime;
+
+                stepResponseChart.data.labels = time;
+                stepResponseChart.data.datasets[0].data = responseData;
+                stepResponseChart.update();
+            }
+
+            zetaSlider.addEventListener('input', updateStepResponse);
+            omegaNSlider.addEventListener('input', updateStepResponse);
+            updateStepResponse();
+
+            // --- Interactive Module 2: Root Locus ---
+            const kSlider = document.getElementById('kSlider');
+            const kValueSpan = document.getElementById('kValue');
+            const rlCanvas = document.getElementById('rootLocusCanvas');
+            const rlCtx = rlCanvas.getContext('2d');
+
+            function drawRootLocus() {
+                const w = rlCanvas.width = rlCanvas.clientWidth;
+                const h = rlCanvas.height = rlCanvas.clientHeight;
+                rlCtx.clearRect(0, 0, w, h);
+
+                const centerX = w * 0.7;
+                const centerY = h / 2;
+                const scale = w / 12;
+
+                // Draw axes
+                rlCtx.beginPath();
+                rlCtx.moveTo(0, centerY);
+                rlCtx.lineTo(w, centerY);
+                rlCtx.moveTo(centerX, 0);
+                rlCtx.lineTo(centerX, h);
+                rlCtx.strokeStyle = '#ddd';
+                rlCtx.stroke();
+
+                // Draw open-loop poles
+                const poles = [0, -2, -5];
+                rlCtx.fillStyle = '#3b82f6';
+                rlCtx.font = '20px sans-serif';
+                poles.forEach(p => {
+                    const x = centerX + p * scale;
+                    rlCtx.fillText('×', x - 6, centerY + 6);
+                });
+
+                // Draw root locus paths (approximated for this visualization)
+                rlCtx.beginPath();
+                rlCtx.moveTo(centerX, centerY);
+                rlCtx.lineTo(centerX - 2 * scale, centerY);
+                rlCtx.strokeStyle = '#81b29a';
+                rlCtx.lineWidth = 2;
+                rlCtx.stroke();
+
+                rlCtx.beginPath();
+                rlCtx.moveTo(centerX - 5 * scale, centerY);
+                rlCtx.lineTo(w, centerY);
+                rlCtx.stroke();
+
+                const separationPoint = -0.88;
+                rlCtx.beginPath();
+                rlCtx.arc(centerX + separationPoint * scale, centerY, 3.5 * scale, Math.PI * 1.05, -Math.PI * 1.05);
+                rlCtx.stroke();
+
+                // Draw closed-loop poles
+                const k = parseFloat(kSlider.value);
+                kValueSpan.textContent = k.toFixed(1);
+
+                // Find roots for a given K. This is a simplified numerical approximation.
+                // Roots of s^3 + 7s^2 + 10s + K = 0
+                let roots;
+                if (k <= 7.4) {
+                    let r1 = -0.4;
+                    for(let i=0; i<5; i++) r1 = r1 - (r1**3 + 7*r1**2 + 10*r1 + k) / (3*r1**2 + 14*r1 + 10);
+                    let r2 = -2.5;
+                    for(let i=0; i<5; i++) r2 = r2 - (r2**3 + 7*r2**2 + 10*r2 + k) / (3*r2**2 + 14*r2 + 10);
+                    let r3 = -6;
+                    for(let i=0; i<5; i++) r3 = r3 - (r3**3 + 7*r3**2 + 10*r3 + k) / (3*r3**2 + 14*r3 + 10);
+                    roots = [{re:r1, im:0}, {re:r2, im:0}, {re:r3, im:0}];
+                } else if (k <= 140) {
+                     let r3 = -6.5;
+                     for(let i=0; i<5; i++) r3 = r3 - (r3**3 + 7*r3**2 + 10*r3 + k) / (3*r3**2 + 14*r3 + 10);
+                     let p = 7+r3;
+                     let q = 10 + 7*r3 + r3**2;
+                     let re = -p/2;
+                     let im = Math.sqrt(4*q - p**2)/2;
+                     roots = [{re:re, im:im}, {re:re, im:-im}, {re:r3, im:0}];
+                } else {
+                     let r3 = -7;
+                     let im = Math.sqrt(k/7 - 10);
+                     roots = [{re:0, im:im}, {re:0, im:-im}, {re:r3, im:0}];
+                }
+
+                rlCtx.fillStyle = '#e07a5f';
+                roots.forEach(root => {
+                    rlCtx.beginPath();
+                    rlCtx.arc(centerX + root.re * scale, centerY - root.im * scale, 5, 0, 2 * Math.PI);
+                    rlCtx.fill();
+                });
+            }
+            kSlider.addEventListener('input', drawRootLocus);
+            new ResizeObserver(drawRootLocus).observe(rlCanvas);
+            drawRootLocus();
+
+             // --- Interactive Module 3: Bode Plot ---
+            const bodeKSlider = document.getElementById('bodeKSlider');
+            const bodeKValueSpan = document.getElementById('bodeKValue');
+            const pmValueSpan = document.getElementById('pmValue');
+            const gmValueSpan = document.getElementById('gmValue');
+            const stabilityStatusSpan = document.getElementById('stabilityStatus');
+            const bodeMagCtx = document.getElementById('bodeMagChart').getContext('2d');
+            const bodePhaseCtx = document.getElementById('bodePhaseChart').getContext('2d');
+
+            const omega = Array.from({length: 300}, (_, i) => Math.pow(10, -1 + 4 * i / 299)); // 0.1 to 1000 rad/s
+
+            let bodeMagChart = new Chart(bodeMagCtx, createBodeChartConfig('对数幅频特性 (dB)', '频率 (rad/s)'));
+            let bodePhaseChart = new Chart(bodePhaseCtx, createBodeChartConfig('相频特性 (deg)', '频率 (rad/s)'));
+
+            function createBodeChartConfig(title, xLabel) {
+                 return {
+                    type: 'line',
+                    data: { labels: omega, datasets: [] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { type: 'logarithmic', title: { display: true, text: xLabel } },
+                            y: { title: { display: true, text: title.split(' ')[0] } }
+                        },
+                        plugins: { legend: { display: false }, title: { display: true, text: title }}
+                    }
+                };
+            }
+
+            function updateBodePlot() {
+                const K = parseFloat(bodeKSlider.value);
+                bodeKValueSpan.textContent = K;
+
+                const mag = omega.map(w => {
+                    const G_jw_mag = K / (w * Math.sqrt(1 + (0.5*w)**2) * Math.sqrt(1 + (0.1*w)**2));
+                    return 20 * Math.log10(G_jw_mag);
+                });
+
+                const phase = omega.map(w => {
+                    const G_jw_phase = -90 - Math.atan(0.5*w)*180/Math.PI - Math.atan(0.1*w)*180/Math.PI;
+                    return G_jw_phase;
+                });
+
+                bodeMagChart.data.datasets = [{ data: mag, borderColor: '#e07a5f', borderWidth: 2, pointRadius: 0 }];
+                bodePhaseChart.data.datasets = [{ data: phase, borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0 }];
+
+                // Find margins
+                let w_gc = -1, w_pc = -1, pm = -1, gm_db = -1;
+
+                for(let i = 0; i < omega.length - 1; i++) {
+                    if(mag[i] >= 0 && mag[i+1] < 0) {
+                        w_gc = omega[i];
+                        const phase_at_gc = phase[i];
+                        pm = 180 + phase_at_gc;
+                    }
+                    if(phase[i] >= -180 && phase[i+1] < -180) {
+                        w_pc = omega[i];
+                        const mag_at_pc = mag[i];
+                        gm_db = -mag_at_pc;
+                    }
+                }
+
+                pmValueSpan.textContent = pm > 0 ? `${pm.toFixed(1)}°` : 'N/A';
+                gmValueSpan.textContent = gm_db > 0 ? `${gm_db.toFixed(1)} dB` : 'N/A';
+
+                if (pm > 0 && gm_db > 0) {
+                    stabilityStatusSpan.textContent = "稳定";
+                    stabilityStatusSpan.className = 'font-mono font-semibold text-green-600';
+                } else {
+                    stabilityStatusSpan.textContent = "不稳定";
+                     stabilityStatusSpan.className = 'font-mono font-semibold text-red-600';
+                }
+
+                bodeMagChart.update();
+                bodePhaseChart.update();
+            }
+            bodeKSlider.addEventListener('input', updateBodePlot);
+            updateBodePlot();
+
+             // --- Interactive Module 4: PID Controller ---
+            const pSlider = document.getElementById('pSlider');
+            const iSlider = document.getElementById('iSlider');
+            const dSlider = document.getElementById('dSlider');
+            const pValueSpan = document.getElementById('pValue');
+            const iValueSpan = document.getElementById('iValue');
+            const dValueSpan = document.getElementById('dValue');
+            const pidCtx = document.getElementById('pidChart').getContext('2d');
+
+            let pidChart = new Chart(pidCtx, {
+                type: 'line',
+                 data: {
+                    labels: [],
+                    datasets: [{
+                        label: '系统响应',
+                        data: [],
+                        borderColor: '#81b29a',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: '时间 (s)' }},
+                        y: { title: { display: true, text: '幅值' }, min: 0, max: 2 }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            function updatePIDResponse() {
+                const Kp = parseFloat(pSlider.value);
+                const Ki = parseFloat(iSlider.value);
+                const Kd = parseFloat(dSlider.value);
+                pValueSpan.textContent = Kp;
+                iValueSpan.textContent = Ki;
+                dValueSpan.textContent = Kd.toFixed(1);
+
+                // Simulate G_plant = 1/(s^2+s+1), G_controller = Kp + Ki/s + Kd*s
+                // Closed loop T(s) = (Kd*s^2 + Kp*s + Ki) / (s^3 + (1+Kd)s^2 + (1+Kp)s + Ki)
+                // This is a 3rd order system. Direct simulation is complex. We use a discrete approximation.
+                const dt = 0.05;
+                const time = Array.from({ length: 201 }, (_, i) => i * dt);
+
+                let y = 0, y_prev = 0, y_prev2 = 0; // plant output
+                let u = 0; // controller output
+                let e = 0, e_prev = 0, integral_e = 0;
+                const r = 1; // setpoint (step input)
+
+                let responseData = [];
+
+                for (let t of time) {
+                    e = r - y;
+                    integral_e += e * dt;
+                    const derivative_e = (e - e_prev) / dt;
+                    u = Kp * e + Ki * integral_e + Kd * derivative_e;
+                    e_prev = e;
+
+                    // Plant dynamics: y'' + y' + y = u  => y_k = (2-dt)*y_{k-1} + (dt^2*u - 1)*y_{k-2}
+                    // A simpler discrete model for y'' + y' + y = u
+                    const y_next = (2 * y - y_prev + dt * (y - y_prev) + dt * dt * u) / (1 + dt);
+                    y_prev2 = y_prev;
+                    y_prev = y;
+                    y = y_next;
+
+                    responseData.push(y);
+                }
+
+                pidChart.data.labels = time;
+                pidChart.data.datasets[0].data = responseData;
+                pidChart.update();
+            }
+
+            pSlider.addEventListener('input', updatePIDResponse);
+            iSlider.addEventListener('input', updatePIDResponse);
+dSlider.addEventListener('input', updatePIDResponse);
+            updatePIDResponse();
+
+        });
+    </script>
+</body>
+</html>

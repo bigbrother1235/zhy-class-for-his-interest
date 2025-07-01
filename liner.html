@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信息图：线性代数 - 驱动机器人的无形之手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Energetic & Playful (Adapted) -->
+    <!--
+        Narrative & Structure Plan:
+        The infographic follows a linear, scrolling narrative that mirrors the source report's logical progression: from fundamental concepts to specific, high-level applications in robotics. The story is:
+        1.  Hook: Start with the core geometric intuition of linear algebra (matrices as transformations).
+        2.  Foundations: Introduce the two ultimate matrix decompositions (Eigen & SVD) as the primary tools for analysis.
+        3.  Application 1 (Kinematics): Show how these tools (specifically SVD) are used to analyze robot movement and dexterity via the Jacobian and manipulability ellipsoid. This is a key interactive section.
+        4.  Application 2 (Control/Estimation): Visualize the core idea of the Kalman Filter, a direct application of linear algebra in dealing with uncertainty.
+        5.  Application 3 (Perception): Demonstrate how PCA (powered by SVD) is used to extract features from high-dimensional sensor data.
+        This structure builds knowledge progressively, connecting each abstract concept to a concrete robotics problem.
+    -->
+    <!--
+        Visualization & Content Choices:
+        1.  Data Point: The Four Fundamental Subspaces. Goal: Organize. Chosen Visualization: Flow chart diagram. Justification/Method: Use structured HTML/CSS with Tailwind to create a clear, static diagram of Strang's "Big Picture", which is more suitable for a foundational concept than a dynamic chart. NO SVG/Mermaid.
+        2.  Data Point: Eigen-decomposition vs. SVD. Goal: Compare. Chosen Visualization: Side-by-side comparison cards with simple icons (Unicode characters). Justification/Method: A direct comparison of properties is best for conceptual clarity. SVD's universality is highlighted.
+        3.  Data Point: Kinematic Singularity & Manipulability. Goal: Change/Relationships. Chosen Visualization: Interactive 2-link arm with a dynamic manipulability ellipsoid. Justification/Method: This is the most intuitive and powerful way to demonstrate the physical meaning of the Jacobian's singular values. Implemented with custom Canvas rendering.
+        4.  Data Point: Kalman Filter Uncertainty. Goal: Change. Chosen Visualization: Area chart. Justification/Method: An area chart (Chart.js) effectively visualizes the "volume" of uncertainty growing during prediction and shrinking during update, telling a clear story over time.
+        5.  Data Point: PCA for Feature Extraction. Goal: Relationships. Chosen Visualization: Bar chart showing singular value dominance. Justification/Method: Instead of a complex scatter plot, a bar chart of the singular values of a point cloud patch clearly and immediately shows that the first principal component (the surface normal) captures almost all the variance, which is the core idea of PCA for this application. Implemented with Chart.js. NO SVG/Mermaid.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            color: #1a202c;
+        }
+        .info-card {
+            background-color: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        h1 { color: #003f5c; }
+        h2 { color: #484b8A; border-bottom: 3px solid #7a5195; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        .stat-number { color: #ef5675; }
+        .flow-arrow {
+            font-size: 2.5rem;
+            color: #7a5195;
+            line-height: 1;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 50vh;
+        }
+        .palette-color1 { background-color: #003f5c; }
+        .palette-color2 { background-color: #7a5195; }
+        .palette-color3 { background-color: #ef5675; }
+        .palette-color4 { background-color: #ffa600; }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+
+        <!-- Header -->
+        <header class="text-center my-12">
+            <h1 class="text-4xl md:text-6xl font-extrabold">线性代数</h1>
+            <p class="text-xl md:text-2xl text-gray-600 mt-4">驱动机器人的无形之手</p>
+        </header>
+
+        <!-- Section 1: Core Idea -->
+        <section class="info-card">
+            <h2 class="text-2xl md:text-3xl font-bold">核心思想：矩阵即变换，变换即几何</h2>
+            <p class="mt-4 text-lg text-gray-700">线性代数的核心，是将复杂的矩阵运算理解为对空间的几何变换。任何一个矩阵 A，都定义了一个从输入空间到输出空间的线性映射，这为我们分析机器人的运动提供了统一的几何框架。</p>
+            <div class="mt-8 p-6 bg-gray-50 rounded-lg">
+                <h3 class="font-bold text-xl text-center text-gray-800">四大基本子空间：任何矩阵的完整写真</h3>
+                <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-8 mt-6 text-center">
+                    <div class="space-y-2">
+                        <div class="p-4 border-2 border-dashed border-blue-400 rounded-lg bg-blue-50">
+                            <h4 class="font-semibold text-blue-800">输入空间 Rⁿ</h4>
+                            <p class="text-sm">行空间 C(Aᵀ)</p>
+                            <p class="text-sm font-bold">+</p>
+                            <p class="text-sm">零空间 N(A)</p>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">&#10230;</div>
+                    <div class="p-4 border-2 border-dashed border-purple-400 rounded-lg bg-purple-50">
+                        <h4 class="font-semibold text-purple-800">输出空间 Rᵐ</h4>
+                        <p class="text-sm">列空间 C(A)</p>
+                        <p class="text-sm font-bold">+</p>
+                        <p class="text-sm">左零空间 N(Aᵀ)</p>
+                    </div>
+                </div>
+                <p class="text-center mt-4 text-gray-600">矩阵 A 将其行空间中的向量一一映射到其列空间，同时将其零空间中的所有向量“压扁”为零。这是线性代数最核心的定理。</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Decompositions -->
+        <section class="info-card">
+            <h2 class="text-2xl md:text-3xl font-bold">两大分解：剖析变换的终极工具</h2>
+            <p class="mt-4 text-lg text-gray-700">为了深入理解变换，我们需要将其分解为更简单的部分。特征分解和奇异值分解(SVD)是两个最强大的工具，它们揭示了任何线性变换的内在结构。</p>
+            <div class="mt-8 grid md:grid-cols-2 gap-8">
+                <div class="p-6 border rounded-lg hover:shadow-lg transition-shadow">
+                    <h3 class="font-bold text-xl">特征分解 A = PDP⁻¹</h3>
+                    <p class="mt-2 text-gray-600">寻找变换的“不变轴”，即特征向量。变换在这些轴上的作用仅仅是拉伸或压缩。</p>
+                    <ul class="mt-4 space-y-2 text-gray-800">
+                        <li class="flex items-center">&#10007; <span class="ml-2">仅适用于方阵</span></li>
+                        <li class="flex items-center">&#10007; <span class="ml-2">并非所有方阵都可分解</span></li>
+                        <li class="flex items-center">&#10003; <span class="ml-2">动力系统稳定性的关键</span></li>
+                    </ul>
+                </div>
+                <div class="p-6 border-2 border-purple-400 rounded-lg bg-purple-50 hover:shadow-lg transition-shadow">
+                    <h3 class="font-bold text-xl text-purple-800">奇异值分解 (SVD) A = UΣVᵀ</h3>
+                    <p class="mt-2 text-gray-600">将任何变换分解为：<strong class="text-purple-600">旋转 → 缩放 → 旋转</strong>。这是最通用的分解方法。</p>
+                     <ul class="mt-4 space-y-2 text-gray-800">
+                        <li class="flex items-center">&#10003; <span class="ml-2">适用于任何矩阵 (m x n)</span></li>
+                        <li class="flex items-center">&#10003; <span class="ml-2">永远存在且唯一</span></li>
+                        <li class="flex items-center">&#10003; <span class="ml-2">机器人可操作性分析的基石</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Kinematics -->
+        <section class="info-card">
+            <h2 class="text-2xl md:text-3xl font-bold">应用一：运动学与可操作性</h2>
+            <p class="mt-4 text-lg text-gray-700">机器人如何灵活地运动？雅可比矩阵 `J` 将关节速度映射到末端执行器速度。对 `J` 进行SVD，其奇异值 `σᵢ` 直接揭示了机器人的运动能力。</p>
+            <div class="mt-8 grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
+                <div class="lg:col-span-3 w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <canvas id="manipulabilityCanvas"></canvas>
+                </div>
+                <div class="lg:col-span-2">
+                    <h3 class="font-bold text-xl">可操作性椭球</h3>
+                    <p class="mt-2 text-gray-600">这个椭球由 `J` 的奇异值 `σᵢ` 决定，可视化了机器人在当前姿态下的运动能力。当机器人接近奇异位形时，某个 `σᵢ` 趋于零，椭球被“压扁”，机器人失去在该方向的运动能力。</p>
+                    <div class="mt-4">
+                        <label for="jointAngle" class="block text-sm font-medium text-gray-700">调整关节2角度 (θ₂):</label>
+                        <input type="range" id="jointAngle" min="-150" max="150" value="60" class="w-full mt-1">
+                        <p class="text-center font-mono text-lg mt-2" id="jointAngleValue">60°</p>
+                    </div>
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-semibold text-sm">奇异值 (速度放大系数):</h4>
+                        <div class="flex items-center mt-2"><div class="legend-dot palette-color3"></div>σ₁ (主轴): <span class="font-mono ml-2" id="sigma1_val"></span></div>
+                        <div class="flex items-center mt-1"><div class="legend-dot palette-color4"></div>σ₂ (次轴): <span class="font-mono ml-2" id="sigma2_val"></span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Dynamics & Control -->
+        <section class="info-card">
+            <h2 class="text-2xl md:text-3xl font-bold">应用二：状态估计与卡尔曼滤波器</h2>
+            <p class="mt-4 text-lg text-gray-700">机器人在充满不确定性的现实世界中导航，必须不断估计自身状态。卡尔曼滤波器是融合模型预测和传感器测量的最优估计算法，其核心是对不确定性（协方差矩阵）的传播与更新。</p>
+            <div class="mt-8">
+                <div class="chart-container">
+                    <canvas id="kalmanChart"></canvas>
+                </div>
+                <p class="text-center mt-4 text-gray-600">上图模拟了机器人位置不确定性的变化。在两次测量之间，由于模型预测，不确定性（蓝色区域）会增加；每次获得新的传感器测量值时，不确定性会急剧减小（更新步骤）。</p>
+            </div>
+        </section>
+
+        <!-- Section 5: Perception -->
+        <section class="info-card">
+            <h2 class="text-2xl md:text-3xl font-bold">应用三：感知与主成分分析(PCA)</h2>
+            <p class="mt-4 text-lg text-gray-700">机器人传感器（如激光雷达）会产生高维点云数据。PCA（其计算引擎是SVD）能从杂乱的数据中提取出最重要的结构特征，例如，估计点云所在表面的法线方向。</p>
+            <div class="mt-8">
+                <div class="chart-container">
+                    <canvas id="pcaChart"></canvas>
+                </div>
+                <p class="text-center mt-4 text-gray-600">上图展示了对一块点云数据进行PCA后得到的主成分重要性。第一个主成分（PC1）的奇异值远大于其他，表明数据主要沿该方向分布。这个方向就是我们需要的表面法线，是场景理解的关键特征。</p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center my-12 text-gray-500">
+            <p>线性代数不仅是数学工具，更是理解和创造智能机器的核心语言。</p>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chartJsTooltip = {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                if (Array.isArray(label)) {
+                                  return label.join(' ');
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            };
+
+            // --- Manipulability Canvas ---
+            const canvas = document.getElementById('manipulabilityCanvas');
+            const ctx = canvas.getContext('2d');
+            const slider = document.getElementById('jointAngle');
+            const angleValue = document.getElementById('jointAngleValue');
+            const sigma1El = document.getElementById('sigma1_val');
+            const sigma2El = document.getElementById('sigma2_val');
+            const l1 = 80, l2 = 60;
+            let scale;
+
+            function resizeManipulabilityCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                scale = Math.min(rect.width, rect.height) / ((l1 + l2) * 2.2);
+                drawManipulability();
+            }
+
+            function drawManipulability() {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                ctx.clearRect(0, 0, rect.width, rect.height);
+
+                const t1 = 45 * Math.PI / 180; // Fixed angle for simplicity
+                const t2 = parseFloat(slider.value) * Math.PI / 180;
+                angleValue.textContent = `${slider.value}°`;
+
+                const s1 = Math.sin(t1), c1 = Math.cos(t1);
+                const s12 = Math.sin(t1 + t2), c12 = Math.cos(t1 + t2);
+
+                // Jacobian
+                const J11 = -l1 * s1 - l2 * s12;
+                const J12 = -l2 * s12;
+                const J21 = l1 * c1 + l2 * c12;
+                const J22 = l2 * c12;
+
+                // JJ^T
+                const M11 = J11 * J11 + J12 * J12;
+                const M12 = J11 * J21 + J12 * J22;
+                const M22 = J21 * J21 + J22 * J22;
+
+                // SVD via eigenvalues of JJ^T
+                const trace = M11 + M22;
+                const det = M11 * M22 - M12 * M12;
+                const discriminant = Math.sqrt(Math.max(0, trace * trace - 4 * det));
+                const lambda1 = (trace + discriminant) / 2;
+                const lambda2 = (trace - discriminant) / 2;
+                const sigma1 = Math.sqrt(lambda1);
+                const sigma2 = Math.sqrt(lambda2);
+
+                sigma1El.textContent = sigma1.toFixed(1);
+                sigma2El.textContent = sigma2.toFixed(1);
+
+                let u1;
+                if (Math.abs(M12) < 1e-6) {
+                    u1 = [1, 0];
+                } else {
+                    u1 = [M12, lambda1 - M11];
+                }
+                const norm1 = Math.sqrt(u1[0]*u1[0] + u1[1]*u1[1]);
+                u1 = [u1[0]/norm1, u1[1]/norm1];
+
+                // --- Drawing ---
+                ctx.save();
+                ctx.translate(rect.width / 2, rect.height / 1.5);
+                ctx.scale(scale, -scale);
+
+                // FK
+                const x1 = l1 * c1, y1 = l1 * s1;
+                const x2 = x1 + l2 * c12, y2 = y1 + l2 * s12;
+
+                // Draw arm
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineWidth = 8 / scale;
+                ctx.strokeStyle = '#003f5c';
+                ctx.lineTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 10 / scale, 0, 2 * Math.PI);
+                ctx.fillStyle = '#1a202c';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x1, y1, 8 / scale, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Draw Ellipse
+                const ellipseAngle = Math.atan2(u1[1], u1[0]);
+                ctx.save();
+                ctx.translate(x2, y2);
+                ctx.rotate(ellipseAngle);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, sigma1 * 0.5, sigma2 * 0.5, 0, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(239, 86, 117, 0.4)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(239, 86, 117, 0.8)';
+                ctx.lineWidth = 3 / scale;
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.restore();
+            }
+            slider.addEventListener('input', drawManipulability);
+            window.addEventListener('resize', resizeManipulabilityCanvas);
+            resizeManipulabilityCanvas();
+
+
+            // --- Kalman Chart ---
+            const kCtx = document.getElementById('kalmanChart').getContext('2d');
+            const kalmanData = {
+                labels: ['t=0', 'Predict', 'Update', 'Predict', 'Update', 'Predict', 'Update'],
+                datasets: [{
+                    label: 'Uncertainty (Covariance)',
+                    data: [2, 5, 1.5, 4.5, 1.2, 4.2, 1.0],
+                    fill: true,
+                    backgroundColor: 'rgba(122, 81, 149, 0.2)',
+                    borderColor: '#7a5195',
+                    tension: 0.2,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#7a5195',
+                }]
+            };
+            new Chart(kCtx, { type: 'line', data: kalmanData, options: { ...chartJsTooltip, maintainAspectRatio: false } });
+
+
+            // --- PCA Chart ---
+            const pcaCtx = document.getElementById('pcaChart').getContext('2d');
+            const pcaData = {
+                labels: [['Surface Normal', '(PC1)'], ['Primary Curvature', '(PC2)'], ['Secondary Curvature', '(PC3)']],
+                datasets: [{
+                    label: 'Singular Values (Importance)',
+                    data: [12.5, 1.8, 0.5],
+                    backgroundColor: ['#ef5675', '#ffa600', '#7a5195'],
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            };
+            new Chart(pcaCtx, { type: 'bar', data: pcaData, options: { ...chartJsTooltip, maintainAspectRatio: false, indexAxis: 'y' } });
+
+        });
+    </script>
+</body>
+</html>

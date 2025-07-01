@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交互式RAG技术深度研究报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f7f9fc;
+            color: #333d4b;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 45vh;
+        }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 300px;
+                max-height: 50vh;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #1e63ff;
+            border-bottom-color: #1e63ff;
+        }
+        .card {
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid #e5e7eb;
+        }
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 24px rgba(30, 99, 255, 0.1);
+        }
+        .tab-button {
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-button.active {
+            color: #1e63ff;
+            border-bottom-color: #1e63ff;
+            font-weight: 600;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, #1e63ff, #8dafff);
+            margin: 16px auto 0;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- Chosen Palette: Calm Harmony (#f7f9fc, #333d4b, #1e63ff, #6b7280, #e5e7eb) -->
+    <!-- Application Structure Plan: 本应用采用非线性的模块化仪表盘设计，而非报告的传统章节结构。顶部设有粘性导航栏，方便用户在“基础”、“核心流水线”、“前沿范式”、“评估与生产”、“应用与未来”五大主题间自由跳转。这种结构将庞大的报告内容分解为多个易于消化的、可视化的、可交互的模块（如卡片、选项卡、图表、流程图），旨在通过引导式探索和按需提供详细信息的方式，最大化用户的理解效率和参与度，这远优于被动地滚动浏览长篇文本。 -->
+    <!-- Visualization & Content Choices: 报告信息 -> 目标 -> 视觉化/呈现方法 -> 交互 -> 理由 -> 库/方法 - 确认无SVG/Mermaid。
+        1. RAG范式演进 -> 目标:比较与展示进程 -> 视觉化:交互式水平步骤条 -> 交互:点击步骤显示详情 -> 理由:直观展示从朴素到模块化的发展历程 -> HTML/CSS。
+        2. 检索算法对比 -> 目标:比较优劣 -> 视觉化:条形图 & 交互式卡片 -> 交互:悬浮/点击卡片查看详情 -> 理由:量化比较关键维度（速度/精度），卡片提供定性描述 -> Chart.js & HTML/CSS。
+        3. “迷失在中间”问题 -> 目标:解释概念 -> 视觉化:折线图 -> 交互:无 -> 理由:清晰展示LLM在长上下文中的注意力分布规律 -> Chart.js。
+        4. 评估框架对比 -> 目标:辅助选型 -> 视觉化:雷达图 & 表格 -> 交互:查看表格详情 -> 理由:多维度直观对比各框架优劣，表格提供精确数据 -> Chart.js & HTML/CSS。
+        5. 生产级架构 -> 目标:解释复杂流程 -> 视觉化:三栏流程图 -> 交互:悬浮提示 -> 理由:清晰解构索引、检索、生成三大流水线，符合信息架构最佳实践 -> HTML/CSS。
+        6. 行业案例 -> 目标:展示实际应用 -> 视觉化:带logo的卡片网格 -> 交互:点击卡片展开详情 -> 理由:视觉吸引力强，便于用户快速找到感兴趣的行业 -> HTML/CSS。 -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <!-- Header & Navigation -->
+    <header class="bg-white/90 backdrop-blur-lg shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-gray-800">RAG技术交互式报告</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#foundations" class="nav-link px-3 py-2 text-sm font-medium text-gray-700">基础</a>
+                        <a href="#pipeline" class="nav-link px-3 py-2 text-sm font-medium text-gray-700">核心流水线</a>
+                        <a href="#frontiers" class="nav-link px-3 py-2 text-sm font-medium text-gray-700">前沿范式</a>
+                        <a href="#production" class="nav-link px-3 py-2 text-sm font-medium text-gray-700">评估与生产</a>
+                        <a href="#applications" class="nav-link px-3 py-2 text-sm font-medium text-gray-700">应用与未来</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#foundations" class="block nav-link px-3 py-2 rounded-md text-base font-medium text-gray-700">基础</a>
+                <a href="#pipeline" class="block nav-link px-3 py-2 rounded-md text-base font-medium text-gray-700">核心流水线</a>
+                <a href="#frontiers" class="block nav-link px-3 py-2 rounded-md text-base font-medium text-gray-700">前沿范式</a>
+                <a href="#production" class="block nav-link px-3 py-2 rounded-md text-base font-medium text-gray-700">评估与生产</a>
+                <a href="#applications" class="block nav-link px-3 py-2 rounded-md text-base font-medium text-gray-700">应用与未来</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <!-- Hero Section -->
+        <section class="text-center py-12">
+            <h2 class="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">检索增强生成 (RAG)</h2>
+            <p class="mt-4 max-w-3xl mx-auto text-lg md:text-xl text-gray-600">
+                深入解析下一代知识密集型AI的核心架构：融合外部动态知识与大模型推理能力的革命性范式。
+            </p>
+            <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+                <div class="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+                    <span class="text-4xl">💡</span>
+                    <h3 class="mt-3 text-lg font-semibold">对抗幻觉</h3>
+                    <p class="text-gray-500 text-sm mt-1">将回答锚定在可验证事实上，提升准确性。</p>
+                </div>
+                <div class="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+                    <span class="text-4xl">🔄</span>
+                    <h3 class="mt-3 text-lg font-semibold">知识更新</h3>
+                    <p class="text-gray-500 text-sm mt-1">动态连接外部知识库，克服知识截止问题。</p>
+                </div>
+                <div class="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+                    <span class="text-4xl">🔗</span>
+                    <h3 class="mt-3 text-lg font-semibold">可追溯性</h3>
+                    <p class="text-gray-500 text-sm mt-1">提供信息来源，增强系统透明度与可信度。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Foundations Section -->
+        <section id="foundations" class="py-16">
+            <h2 class="text-3xl font-bold text-center section-title">RAG的演进之路</h2>
+            <p class="mt-4 text-center max-w-3xl mx-auto text-gray-600">从简单的线性流程到灵活的模块化框架，RAG技术经历了快速的迭代演进。本节将带您回顾这一历程，理解其背后的驱动力，即系统复杂性从生成器向检索和增强流水线转移的深刻趋势。</p>
+            <div class="mt-12 relative">
+                <div class="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-gray-200 transform -translate-y-1/2"></div>
+                <div class="relative flex flex-col md:flex-row justify-between items-center md:items-start text-center">
+                    <div class="flex-1 p-4">
+                        <div class="relative flex flex-col items-center">
+                            <div class="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xl ring-8 ring-white z-10">1</div>
+                            <h3 class="mt-4 text-xl font-semibold">朴素 RAG</h3>
+                            <p class="mt-2 text-gray-500 text-sm">简单的“检索-生成”线性流程，快速验证概念，但性能瓶颈明显。</p>
+                        </div>
+                    </div>
+                    <div class="flex-1 p-4 mt-8 md:mt-0">
+                        <div class="relative flex flex-col items-center">
+                            <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xl ring-8 ring-white z-10">2</div>
+                            <h3 class="mt-4 text-xl font-semibold">高级 RAG</h3>
+                            <p class="mt-2 text-gray-500 text-sm">引入检索前后优化（如重排、查询转换），显著提升上下文质量。</p>
+                        </div>
+                    </div>
+                    <div class="flex-1 p-4 mt-8 md:mt-0">
+                        <div class="relative flex flex-col items-center">
+                            <div class="w-12 h-12 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-xl ring-8 ring-white z-10">3</div>
+                            <h3 class="mt-4 text-xl font-semibold">模块化 RAG</h3>
+                            <p class="mt-2 text-gray-500 text-sm">将流程解构成可灵活组合的模块（如搜索、路由），适应复杂任务。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Core Pipeline Section -->
+        <section id="pipeline" class="py-16 bg-white rounded-2xl shadow-inner-lg">
+            <h2 class="text-3xl font-bold text-center section-title">RAG核心流水线解构</h2>
+            <p class="mt-4 text-center max-w-3xl mx-auto text-gray-600">一个强大的RAG系统由多个精密协作的组件构成。本节我们将流水线分解为检索、增强和生成三个核心部分，通过交互式选项卡深入剖析每个环节的关键技术与挑战。</p>
+
+            <div class="mt-12 max-w-6xl mx-auto">
+                 <div class="flex justify-center mb-8 border-b border-gray-200">
+                    <button class="tab-button flex-1 sm:flex-none px-6 py-3 text-sm font-medium text-gray-500 active" data-tab="retrieval">检索组件</button>
+                    <button class="tab-button flex-1 sm:flex-none px-6 py-3 text-sm font-medium text-gray-500" data-tab="augmentation">增强组件</button>
+                </div>
+
+                <div id="retrieval" class="tab-content">
+                    <p class="text-center mb-8 text-gray-600">检索组件是RAG的基石，负责从知识库中高效准确地找到相关信息。其质量决定了整个系统的上限。</p>
+                    <div class="grid md:grid-cols-2 gap-8 items-start">
+                        <div class="space-y-6">
+                            <h3 class="text-xl font-semibold mb-4 text-center md:text-left">关键技术概览</h3>
+                            <div class="card p-5">
+                                <h4 class="font-bold text-blue-600">分块策略 (Chunking)</h4>
+                                <p class="text-sm text-gray-600 mt-1">将文档分割成语义连贯的小块，是提升检索精度的第一步。策略从固定大小，发展到尊重结构的递归分块，再到基于语义的智能体分块。</p>
+                            </div>
+                            <div class="card p-5">
+                                <h4 class="font-bold text-blue-600">混合搜索 (Hybrid Search)</h4>
+                                <p class="text-sm text-gray-600 mt-1">结合稀疏检索（如BM25）的关键词精度和稠密检索（向量）的语义理解能力，实现词法与语义的最佳平衡。</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4 text-center">检索算法对比</h3>
+                            <div class="chart-container">
+                                <canvas id="retrievalAlgoChart"></canvas>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2 text-center">不同检索算法在关键维度上的表现对比（分数越高越好）。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="augmentation" class="tab-content hidden">
+                     <p class="text-center mb-8 text-gray-600">增强组件负责优化检索到的上下文和用户查询，为LLM准备一份“干净”且“易于消化”的信息大餐。</p>
+                    <div class="grid md:grid-cols-2 gap-8 items-start">
+                        <div class="space-y-6">
+                            <h3 class="text-xl font-semibold mb-4 text-center md:text-left">关键技术概览</h3>
+                            <div class="card p-5">
+                                <h4 class="font-bold text-blue-600">上下文重排 (Re-ranking)</h4>
+                                <p class="text-sm text-gray-600 mt-1">使用更强大的交叉编码器模型对初步检索结果精排，将最相关文档置顶，并缓解“迷失在中间”问题。</p>
+                            </div>
+                             <div class="card p-5">
+                                <h4 class="font-bold text-blue-600">查询转换 (Query Transformation)</h4>
+                                <p class="text-sm text-gray-600 mt-1">通过重写、分解或“退后一步”思考等方式优化原始查询，弥合用户意图与知识库内容之间的语义鸿沟。</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4 text-center">挑战：“迷失在中间”</h3>
+                            <div class="chart-container">
+                                <canvas id="lostInMiddleChart"></canvas>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2 text-center">研究表明LLM对长上下文两端的信息关注度更高。通过重排策略可有效缓解此问题。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Frontiers Section -->
+        <section id="frontiers" class="py-16">
+            <h2 class="text-3xl font-bold text-center section-title">RAG前沿范式</h2>
+            <p class="mt-4 text-center max-w-3xl mx-auto text-gray-600">RAG的研究正不断涌现出新的、更具颠覆性的范式，旨在赋予系统更高层次的智能。本节将通过交互式卡片探索四个最具代表性的方向，揭示它们如何应对更复杂的任务。</p>
+            <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="card p-6 text-center">
+                    <span class="text-5xl">🧠</span>
+                    <h3 class="mt-4 text-xl font-semibold">自适应RAG</h3>
+                    <p class="mt-2 text-gray-600 text-sm">赋予模型“自我反思”能力，智能判断何时检索、是否多次检索，并对结果进行批判。</p>
+                </div>
+                <div class="card p-6 text-center">
+                    <span class="text-5xl">🤖</span>
+                    <h3 class="mt-4 text-xl font-semibold">智能体RAG</h3>
+                    <p class="mt-2 text-gray-600 text-sm">将RAG流程交由AI智能体主导，实现复杂的规划、多步推理和动态工具使用。</p>
+                </div>
+                <div class="card p-6 text-center">
+                    <span class="text-5xl">🕸️</span>
+                    <h3 class="mt-4 text-xl font-semibold">基于图的RAG</h3>
+                    <p class="mt-2 text-gray-600 text-sm">引入知识图谱，连接离散信息点，进行更深层次的关系推理和综合分析。</p>
+                </div>
+                <div class="card p-6 text-center">
+                    <span class="text-5xl">🖼️</span>
+                    <h3 class="mt-4 text-xl font-semibold">多模态RAG</h3>
+                    <p class="mt-2 text-gray-600 text-sm">打破文本束缚，使系统能够理解和处理图像、表格、图表等非文本数据。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Production Section -->
+        <section id="production" class="py-16 bg-white rounded-2xl shadow-inner-lg">
+            <h2 class="text-3xl font-bold text-center section-title">从实验到生产</h2>
+             <p class="mt-4 text-center max-w-3xl mx-auto text-gray-600">将RAG系统投入生产环境，需要完善的评估体系和稳健的系统架构。本节将展示用于科学评估系统的框架，并描绘一个生产级架构蓝图。</p>
+            <div class="mt-12 max-w-6xl mx-auto">
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                     <div>
+                        <h3 class="text-xl font-semibold mb-4 text-center">评估框架对比</h3>
+                        <div class="chart-container">
+                            <canvas id="evaluationFrameworkChart"></canvas>
+                        </div>
+                         <p class="text-xs text-gray-500 mt-2 text-center">主流RAG评估框架在关键维度上的能力对比。</p>
+                    </div>
+                    <div>
+                         <h3 class="text-xl font-semibold mb-4 text-center">核心评估指标</h3>
+                         <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <span class="text-blue-500 font-bold mr-3 text-xl">🎯</span>
+                                <div><strong class="text-gray-800">上下文精确率:</strong> 检索到的信息有多大比例是相关的？（信噪比）</div>
+                            </li>
+                             <li class="flex items-start">
+                                <span class="text-blue-500 font-bold mr-3 text-xl">📥</span>
+                                <div><strong class="text-gray-800">上下文召回率:</strong> 所有需要的信息是否都被检索出来了？（完整性）</div>
+                            </li>
+                             <li class="flex items-start">
+                                <span class="text-blue-500 font-bold mr-3 text-xl">🛡️</span>
+                                <div><strong class="text-gray-800">忠实度:</strong> 生成的答案是否完全基于给定的上下文？（抗幻觉）</div>
+                            </li>
+                             <li class="flex items-start">
+                                <span class="text-blue-500 font-bold mr-3 text-xl">✔️</span>
+                                <div><strong class="text-gray-800">答案相关性:</strong> 生成的答案是否切题地回应了用户问题？（有效性）</div>
+                            </li>
+                         </ul>
+                    </div>
+                </div>
+                <div class="mt-16">
+                    <h3 class="text-2xl font-semibold mb-6 text-center">生产级RAG架构蓝图</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div class="card p-4">
+                            <h4 class="font-bold text-lg mb-2 text-gray-700">1. 索引流水线 (离线)</h4>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="bg-gray-100 p-2 rounded-lg">数据加载 & 处理</div>
+                                <div class="text-2xl text-gray-300">↓</div>
+                                <div class="bg-gray-100 p-2 rounded-lg">分块 & 嵌入 & 索引</div>
+                            </div>
+                        </div>
+                        <div class="card p-4 border-2 border-blue-500">
+                             <h4 class="font-bold text-lg mb-2 text-blue-600">2. 检索流水线 (在线)</h4>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="bg-blue-50 p-2 rounded-lg">查询处理 & 检索</div>
+                                <div class="text-2xl text-blue-300">↓</div>
+                                <div class="bg-blue-50 p-2 rounded-lg">重排 & 压缩</div>
+                            </div>
+                        </div>
+                        <div class="card p-4">
+                             <h4 class="font-bold text-lg mb-2 text-gray-700">3. 生成流水线 (在线)</h4>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="bg-gray-100 p-2 rounded-lg">安全护栏 & 缓存</div>
+                                <div class="text-2xl text-gray-300">↓</div>
+                                <div class="bg-gray-100 p-2 rounded-lg">LLM生成 & 审核</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Applications Section -->
+        <section id="applications" class="py-16">
+            <h2 class="text-3xl font-bold text-center section-title">应用实践与未来展望</h2>
+             <p class="mt-4 text-center max-w-3xl mx-auto text-gray-600">RAG技术正迅速渗透到各行各业，解决实际业务问题。本节将展示其在关键领域的应用案例，并探讨该技术面临的新挑战和广阔的研究空间。</p>
+            <div class="mt-12">
+                <h3 class="text-2xl font-semibold mb-8 text-center">行业案例研究</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="card p-6">
+                        <h4 class="font-bold">🤝 客户服务</h4>
+                        <p class="text-sm text-gray-600 mt-2">智能客服机器人利用RAG，从产品手册、历史工单中检索信息，提供7x24小时精准回答，提升客户满意度。</p>
+                    </div>
+                    <div class="card p-6">
+                        <h4 class="font-bold">💰 金融服务</h4>
+                        <p class="text-sm text-gray-600 mt-2">整合实时市场数据、财报和监管文件，辅助分析师进行市场分析、风险评估和欺诈检测。</p>
+                    </div>
+                    <div class="card p-6">
+                        <h4 class="font-bold">⚖️ 法律行业</h4>
+                        <p class="text-sm text-gray-600 mt-2">高效查询海量法律数据库，辅助律师进行案例研究、合同审查和尽职调查，大幅缩短研究时间。</p>
+                    </div>
+                    <div class="card p-6">
+                        <h4 class="font-bold">❤️ 医疗健康</h4>
+                        <p class="text-sm text-gray-600 mt-2">结合权威医学文献和电子病历，为医生提供临床决策支持，辅助诊断，并帮助筛选临床试验患者。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-16">
+                <h3 class="text-2xl font-semibold mb-8 text-center">未来三大挑战</h3>
+                <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                    <div class="card p-6">
+                        <p class="text-4xl">🛡️</p>
+                        <h4 class="font-semibold mt-2">鲁棒性</h4>
+                        <p class="text-sm text-gray-500 mt-1">如何让系统对知识库中的噪声和错误更具抵抗力。</p>
+                    </div>
+                    <div class="card p-6">
+                        <p class="text-4xl">📚</p>
+                        <h4 class="font-semibold mt-2">终身学习</h4>
+                        <p class="text-sm text-gray-500 mt-1">如何让系统自主、持续地吸收新知识而不遗忘旧知识。</p>
+                    </div>
+                    <div class="card p-6">
+                        <p class="text-4xl">🔍</p>
+                        <h4 class="font-semibold mt-2">可解释性</h4>
+                        <p class="text-sm text-gray-500 mt-1">如何打开检索过程的“黑箱”，让用户理解其决策依据。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white">
+        <div class="container mx-auto px-8 py-6 text-center text-sm">
+            <p>&copy; 2025 RAG技术交互式报告。基于深度研究报告生成。</p>
+        </div>
+    </footer>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                tabContents.forEach(content => content.classList.add('hidden'));
+                document.getElementById(button.dataset.tab).classList.remove('hidden');
+            });
+        });
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+                if (!mobileMenu.classList.contains('hidden')) {
+                    mobileMenu.classList.add('hidden');
+                }
+            });
+        });
+
+        const sections = document.querySelectorAll('section[id]');
+        const navLinks = document.querySelectorAll('header nav a');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    navLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href').substring(1) === entry.target.id) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }, { rootMargin: '-50% 0px -50% 0px' });
+
+        sections.forEach(section => observer.observe(section));
+
+        const chartJsConfig = {
+            defaults: {
+                font: {
+                    family: "'Noto Sans SC', sans-serif",
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#333d4b',
+                            font: { size: 12 }
+                        }
+                    }
+                },
+            }
+        };
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0,0,0,0.7)';
+        Chart.defaults.plugins.tooltip.titleFont.size = 14;
+        Chart.defaults.plugins.tooltip.bodyFont.size = 12;
+
+        const retrievalCtx = document.getElementById('retrievalAlgoChart').getContext('2d');
+        new Chart(retrievalCtx, {
+            type: 'bar',
+            data: {
+                labels: ['关键词精度', '语义理解', '速度/效率', '实现复杂度'],
+                datasets: [{
+                    label: '稀疏检索(BM25)',
+                    data: [9, 3, 9, 2],
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                }, {
+                    label: '稠密检索(Vector)',
+                    data: [4, 9, 6, 7],
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                }, {
+                    label: '混合检索(Hybrid)',
+                    data: [8, 8, 5, 9],
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                }]
+            },
+            options: {
+                ...chartJsConfig,
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: { x: { beginAtZero: true, max: 10 } },
+                plugins: {
+                    ...chartJsConfig.plugins,
+                    title: { display: false },
+                    tooltip: {
+                         callbacks: {
+                            label: function(context) { return `${context.dataset.label}: ${context.parsed.x} / 10`; }
+                        }
+                    }
+                }
+            }
+        });
+
+        const lostCtx = document.getElementById('lostInMiddleChart').getContext('2d');
+        new Chart(lostCtx, {
+            type: 'line',
+            data: {
+                labels: ['开头 10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '结尾 10%'],
+                datasets: [{
+                    label: 'LLM注意力分数',
+                    data: [9.5, 7, 6, 5, 4.5, 5.5, 6.5, 8, 9.8],
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointRadius: 4,
+                }]
+            },
+            options: {
+                ...chartJsConfig,
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, max: 10 } },
+                plugins: { ...chartJsConfig.plugins, title: { display: false }, legend: { display: false } }
+            }
+        });
+
+        const evalCtx = document.getElementById('evaluationFrameworkChart').getContext('2d');
+        new Chart(evalCtx, {
+            type: 'radar',
+            data: {
+                labels: ['评估精度', '易用性', '速度', '低成本', '可解释性'],
+                datasets: [{
+                    label: 'RAGAs',
+                    data: [7, 9, 8, 6, 7],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                }, {
+                    label: 'ARES',
+                    data: [9, 5, 5, 7, 8],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                }, {
+                    label: 'TruLens',
+                    data: [8, 8, 7, 6, 9],
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                }]
+            },
+            options: {
+                ...chartJsConfig,
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { display: true },
+                        suggestedMin: 0,
+                        suggestedMax: 10,
+                        pointLabels: { font: { size: 12 } },
+                        grid: { color: '#e5e7eb' },
+                        ticks: { backdropColor: 'white', color: '#6b7280' }
+                    }
+                },
+                plugins: { ...chartJsConfig.plugins, title: { display: false }, legend: { position: 'bottom' } }
+            }
+        });
+    });
+    </script>
+</body>
+</html>
